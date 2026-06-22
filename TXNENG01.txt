@@ -1,0 +1,278 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TXNENG01.
+       AUTHOR. Nexapro.
+       DATE-WRITTEN. JUNE 2026.
+       
+      ******************************************************************
+      * PROGRAM: TXNENG01
+      * PURPOSE: REAL-TIME FINANCIAL POSTING ENGINE (DEBITS / CREDITS)
+      * SECURITY: LUHN MOD-10 VALIDATION & EXPLICIT TRANSACTION BLOCKS
+      ******************************************************************
+       
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-ISERIES.
+       OBJECT-COMPUTER. IBM-ISERIES.
+       
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+
+      *----------------------------------------------------------------*
+      * INPUT ARGUMENTS / PARAMETERS (SIMULATING LINKAGE FIELDS)       *
+      *----------------------------------------------------------------*
+       01  LS-INPUT-ARGUMENTS.
+           05 LS-ACCT-NUM          PIC 9(12) VALUE 400000291652.
+           05 LS-TXN-AMT           PIC S9(13)V99 COMP-3 VALUE 150.75.
+           05 LS-TXN-TYPE          PIC X(01) VALUE 'D'.
+              88 TXN-IS-DEBIT               VALUE 'D'.
+              88 TXN-IS-CREDIT              VALUE 'C'.
+
+      *----------------------------------------------------------------*
+      * STATE TRACKING SWITCHES                                        *
+      *----------------------------------------------------------------*
+       01  WS-CONTROL-SWITCHES.
+           05 WS-LUHN-STATUS       PIC X(01) VALUE 'N'.
+              88 LUHN-PASSED                VALUE 'Y'.
+              88 LUHN-FAILED                VALUE 'N'.
+           05 WS-TXN-STATUS        PIC X(01) VALUE 'P'.
+              88 TXN-SUCCESS                VALUE 'P'.
+              88 TXN-FAILED-ROLLBACK        VALUE 'F'.
+
+      *----------------------------------------------------------------*
+      * LUHN ALGORITHM PROCESSING FIELDS                               *
+      *----------------------------------------------------------------*
+       01  WS-LUHN-WORK-AREA.
+           05 WS-ACCT-STR.
+              10 WS-DIGIT          PIC 9(01) OCCURS 12 TIMES.
+           05 WS-IDX               PIC S9(04) COMP.
+           05 WS-POS-FROM-RIGHT    PIC S9(04) COMP.
+           05 WS-DIGIT-WEIGHT      PIC 9(02) COMP.
+           05 WS-TOTAL-SUM         PIC 9(04) COMP VALUE ZERO.
+
+      *----------------------------------------------------------------*
+      * FIXED-POINT WORKING FINANCIAL BALANCES                         *
+      *----------------------------------------------------------------*
+       01  WS-FINANCIAL-CALCS.
+           05 WS-CURRENT-BAL       PIC S9(13)V99 COMP-3 VALUE ZERO.
+           05 WS-MIN-BAL           PIC S9(13)V99 COMP-3 VALUE ZERO.
+           05 WS-NEW-BAL           PIC S9(13)V99 COMP-3 VALUE ZERO.
+
+      *----------------------------------------------------------------*
+      * EMBEDDED SQL DB2 COMMUNICATION AREA & HOST VARIABLES           *
+      *----------------------------------------------------------------*
+           EXEC SQL INCLUDE SQLCA END-EXEC.
+
+       01  WS-SQL-HOST-VARIABLES.
+           05 HV-ACCT-NUM          PIC 9(12).
+           05 HV-ACC-BALANCE       PIC S9(13)V99 COMP-3.
+           05 HV-ACC-MIN-BAL       PIC S9(13)V99 COMP-3.
+           05 HV-TXN-AMT           PIC S9(13)V99 COMP-3.
+           05 HV-TXN-TYPE          PIC X(01).
+           05 HV-ERR-MSG           PIC X(60).
+
+       PROCEDURE DIVISION.
+       
+       0000-MAIN-POSTING-ENGINE SECTION.
+      *================================================================*
+      * CORE CONTROLLER FLOW                                           *
+      *================================================================*
+           DISPLAY "TXN_ENG: INITIALIZING TRANSACTION PROCESSING..."
+           
+           PERFORM 1000-VALIDATE-LUHN-ACCOUNT
+           
+           IF LUHN-FAILED
+               DISPLAY "CRITICAL: ACCOUNT NUMBER FAILED MOD-10 VALIDATION."
+               GOBACK
+           END-IF
+           
+           PERFORM 2000-START-TXN-BLOCK
+           
+           IF TXN-SUCCESS
+               PERFORM 3000-FETCH-CURRENT-BALANCE
+           END-IF
+           
+           IF TXN-SUCCESS
+               PERFORM 4000-PROCESS-FINANCIAL-MATH
+           END-IF
+           
+           IF TXN-SUCCESS
+               PERFORM 5000-EXECUTE-LEDGER-POSTING
+           END-IF
+           
+           PERFORM 6000-FINALIZE-TRANSACTION
+           
+           GOBACK.
+
+       1000-VALIDATE-LUHN-ACCOUNT SECTION.
+      *================================================================*
+      * LUHN ALGORITHM (MODULUS 10 CHECK DIGIT VALIDATION)             *
+      *================================================================*
+           SET LUHN-FAILED TO TRUE
+           MOVE ZERO TO WS-TOTAL-SUM
+           MOVE LS-ACCT-NUM TO WS-ACCT-STR
+           
+           PERFORM VARYING WS-IDX FROM 12 BY -1 UNTIL WS-IDX < 1
+               COMPUTE WS-POS-FROM-RIGHT = 13 - WS-IDX
+               MOVE WS-DIGIT(WS-IDX) TO WS-DIGIT-WEIGHT
+               
+               * Double every second digit from the right
+               IF FUNCTION MOD(WS-POS-FROM-RIGHT, 2) = 0
+                   COMPUTE WS-DIGIT-WEIGHT = WS-DIGIT-WEIGHT * 2
+                   IF WS-DIGIT-WEIGHT > 9
+                       COMPUTE WS-DIGIT-WEIGHT = WS-DIGIT-WEIGHT - 9
+                   END-IF
+               END-IF
+               
+               COMPUTE WS-TOTAL-SUM = WS-TOTAL-SUM + WS-DIGIT-WEIGHT
+           END-PERFORM
+           
+           IF FUNCTION MOD(WS-TOTAL-SUM, 10) = 0
+               SET LUHN-PASSED TO TRUE
+               DISPLAY "TXN_ENG: LUHN CHECK DIGIT VERIFIED SUCCESSFULLY."
+           END-IF.
+
+       2000-START-TXN-BLOCK SECTION.
+      *================================================================*
+      * EXPLICIT TRANSACTION ISOLATION BOUNDARY BLOCK                  *
+      *================================================================*
+           DISPLAY "TXN_ENG: ISSUING ISOLATION BOUNDARY LEVEL..."
+           
+           EXEC SQL
+               SET TRANSACTION ISOLATION LEVEL RECORD LOCK
+           END-EXEC
+           
+           IF SQLCODE NOT = 0
+               SET TXN-FAILED-ROLLBACK TO TRUE
+               MOVE "SQL ERROR SETTING TRANSACTION ISOLATION" TO HV-ERR-MSG
+               PERFORM 8000-LOG-SQL-EXCEPTION
+           END-IF.
+
+       3000-FETCH-CURRENT-BALANCE SECTION.
+      *================================================================*
+      * EMBEDDED SQL READ FOR REAL-TIME ACCOUNT BALANCES               *
+      *================================================================*
+           MOVE LS-ACCT-NUM TO HV-ACCT-NUM
+           
+           EXEC SQL
+               SELECT ACC_BALANCE, ACC_MIN_BAL
+                 INTO :HV-ACC-BALANCE, :HV-ACC-MIN-BAL
+                 FROM ACCMASTER
+                WHERE ACC_NUM = :HV-ACCT-NUM
+                  FOR UPDATE OF ACC_BALANCE
+           END-EXEC
+           
+           EVALUATE TRUE
+               WHEN SQLCODE = 0
+                   MOVE HV-ACC-BALANCE TO WS-CURRENT-BAL
+                   MOVE HV-ACC-MIN-BAL TO WS-MIN-BAL
+               WHEN SQLCODE = 100
+                   SET TXN-FAILED-ROLLBACK TO TRUE
+                   DISPLAY "CRITICAL: ACCOUNT NOT FOUND IN ACCMASTER."
+               WHEN OTHER
+                   SET TXN-FAILED-ROLLBACK TO TRUE
+                   MOVE "SQL EXCEPTION DURING BALANCE FETCH" TO HV-ERR-MSG
+                   PERFORM 8000-LOG-SQL-EXCEPTION
+           END-EVALUATE.
+
+       4000-PROCESS-FINANCIAL-MATH SECTION.
+      *================================================================*
+      * FIXED-POINT MATHEMATICAL POSTING EVALUATION                    *
+      *================================================================*
+           EVALUATE TRUE
+               WHEN TXN-IS-DEBIT
+                   COMPUTE WS-NEW-BAL = WS-CURRENT-BAL - LS-TXN-AMT
+                   IF WS-NEW-BAL < WS-MIN-BAL
+                       SET TXN-FAILED-ROLLBACK TO TRUE
+                       DISPLAY "CRITICAL: TRANSACTION DENIED. INS_FUNDS."
+                       DISPLAY "CURRENT: " WS-CURRENT-BAL 
+                               " | MIN REQ: " WS-MIN-BAL
+                   ELSE
+                       DISPLAY "TXN_ENG: DEBIT PROCESSING APPROVED."
+                   END-IF
+                   
+               WHEN TXN-IS-CREDIT
+                   COMPUTE WS-NEW-BAL = WS-CURRENT-BAL + LS-TXN-AMT
+                   DISPLAY "TXN_ENG: CREDIT PROCESSING APPROVED."
+                   
+               WHEN OTHER
+                   SET TXN-FAILED-ROLLBACK TO TRUE
+                   DISPLAY "CRITICAL: INVALID TRANSACTION TYPE RECEIVED."
+           END-EVALUATE.
+
+       5000-EXECUTE-LEDGER-POSTING SECTION.
+      *================================================================*
+      * DUAL-TABLE MODIFICATION WITHIN ATOMIC TRANSACTION FRAMEWORK    *
+      *================================================================*
+           MOVE WS-NEW-BAL TO HV-ACC-BALANCE
+           MOVE LS-TXN-AMT TO HV-TXN-AMT
+           MOVE LS-TXN-TYPE TO HV-TXN-TYPE
+
+           DISPLAY "TXN_ENG: ATOMIC UPDATE PHASE COMMENCING..."
+
+           * Operation A: Update Master Record
+           EXEC SQL
+               UPDATE ACCMASTER
+                  SET ACC_BALANCE = :HV-ACC-BALANCE
+                WHERE ACC_NUM = :HV-ACCT-NUM
+           END-EXEC
+           
+           IF SQLCODE NOT = 0
+               SET TXN-FAILED-ROLLBACK TO TRUE
+               MOVE "SQL FAIL: ACCMASTER BALANCE UPDATE" TO HV-ERR-MSG
+               PERFORM 8000-LOG-SQL-EXCEPTION
+               EXIT SECTION
+           END-IF
+
+           * Operation B: Append Record into Audit Ledger (TXNJRNPF)
+           EXEC SQL
+               INSERT INTO TXNJRNPF 
+               (
+                   TXN_ACC_NUM, 
+                   TXN_AMT, 
+                   TXN_TYPE, 
+                   TXN_TIMESTAMP
+               )
+               VALUES 
+               (
+                   :HV-ACCT-NUM, 
+                   :HV-TXN-AMT, 
+                   :HV-TXN-TYPE, 
+                   CURRENT TIMESTAMP
+               )
+           END-EXEC
+           
+           IF SQLCODE NOT = 0
+               SET TXN-FAILED-ROLLBACK TO TRUE
+               MOVE "SQL FAIL: TXNJRNPF HISTORY INSERT" TO HV-ERR-MSG
+               PERFORM 8000-LOG-SQL-EXCEPTION
+           END-IF.
+
+       6000-FINALIZE-TRANSACTION SECTION.
+      *================================================================*
+      * COMMIT / ROLLBACK EVALUATION PATTERN                           *
+      *================================================================*
+           IF TXN-SUCCESS
+               EXEC SQL COMMIT END-EXEC
+               IF SQLCODE = 0
+                   DISPLAY "TXN_ENG: POSTING COMMITTED SAFELY TO LEDGER."
+               ELSE
+                   MOVE "COMMIT EXECUTION DISASTER" TO HV-ERR-MSG
+                   PERFORM 8000-LOG-SQL-EXCEPTION
+                   EXEC SQL ROLLBACK END-EXEC
+               END-IF
+           ELSE
+               DISPLAY "TXN_ENG: FAULT DETECTED. INITIATING ROLLBACK..."
+               EXEC SQL ROLLBACK END-EXEC
+               DISPLAY "TXN_ENG: ROLLBACK EXECUTED. LEDGER STATE PRESERVED."
+           END-IF.
+
+       8000-LOG-SQL-EXCEPTION SECTION.
+      *================================================================*
+      * SQL STATE RECOVERY METRICS LOGGING                             *
+      *================================================================*
+           DISPLAY "****************************************"
+           DISPLAY " ENGINE DATABASE EXCEPTION OCCURRED     "
+           DISPLAY " CONTEXT: " HV-ERR-MSG
+           DISPLAY " SQLCODE: " SQLCODE
+           DISPLAY " SQLSTATE: " SQLSTATE
+           DISPLAY "****************************************".

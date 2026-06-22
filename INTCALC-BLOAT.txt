@@ -1,0 +1,927 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. INTCALC-BLOAT.
+       AUTHOR. Nexapro.
+       
+       ENVIRONMENT DIVISION.
+       
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-DIVISOR PIC S9(05) COMP-3 VALUE 36500.
+       
+      *================================================================*
+      * MANUALLY UNROLLED DATA STRUCTURE (NO ARRAYS ALLOWED)           *
+      *================================================================*
+       01  WS-UNROLLED-BLOCK.
+              05 N-001 PIC X(15).
+              05 B-001 PIC S9(13)V99 COMP-3.
+              05 R-001 PIC S9(03)V9(4) COMP-3.
+              05 I-001 PIC S9(11)V99 COMP-3.
+              05 N-002 PIC X(15).
+              05 B-002 PIC S9(13)V99 COMP-3.
+              05 R-002 PIC S9(03)V9(4) COMP-3.
+              05 I-002 PIC S9(11)V99 COMP-3.
+              05 N-003 PIC X(15).
+              05 B-003 PIC S9(13)V99 COMP-3.
+              05 R-003 PIC S9(03)V9(4) COMP-3.
+              05 I-003 PIC S9(11)V99 COMP-3.
+              05 N-004 PIC X(15).
+              05 B-004 PIC S9(13)V99 COMP-3.
+              05 R-004 PIC S9(03)V9(4) COMP-3.
+              05 I-004 PIC S9(11)V99 COMP-3.
+              05 N-005 PIC X(15).
+              05 B-005 PIC S9(13)V99 COMP-3.
+              05 R-005 PIC S9(03)V9(4) COMP-3.
+              05 I-005 PIC S9(11)V99 COMP-3.
+              05 N-006 PIC X(15).
+              05 B-006 PIC S9(13)V99 COMP-3.
+              05 R-006 PIC S9(03)V9(4) COMP-3.
+              05 I-006 PIC S9(11)V99 COMP-3.
+              05 N-007 PIC X(15).
+              05 B-007 PIC S9(13)V99 COMP-3.
+              05 R-007 PIC S9(03)V9(4) COMP-3.
+              05 I-007 PIC S9(11)V99 COMP-3.
+              05 N-008 PIC X(15).
+              05 B-008 PIC S9(13)V99 COMP-3.
+              05 R-008 PIC S9(03)V9(4) COMP-3.
+              05 I-008 PIC S9(11)V99 COMP-3.
+              05 N-009 PIC X(15).
+              05 B-009 PIC S9(13)V99 COMP-3.
+              05 R-009 PIC S9(03)V9(4) COMP-3.
+              05 I-009 PIC S9(11)V99 COMP-3.
+              05 N-010 PIC X(15).
+              05 B-010 PIC S9(13)V99 COMP-3.
+              05 R-010 PIC S9(03)V9(4) COMP-3.
+              05 I-010 PIC S9(11)V99 COMP-3.
+              05 N-011 PIC X(15).
+              05 B-011 PIC S9(13)V99 COMP-3.
+              05 R-011 PIC S9(03)V9(4) COMP-3.
+              05 I-011 PIC S9(11)V99 COMP-3.
+              05 N-012 PIC X(15).
+              05 B-012 PIC S9(13)V99 COMP-3.
+              05 R-012 PIC S9(03)V9(4) COMP-3.
+              05 I-012 PIC S9(11)V99 COMP-3.
+              05 N-013 PIC X(15).
+              05 B-013 PIC S9(13)V99 COMP-3.
+              05 R-013 PIC S9(03)V9(4) COMP-3.
+              05 I-013 PIC S9(11)V99 COMP-3.
+              05 N-014 PIC X(15).
+              05 B-014 PIC S9(13)V99 COMP-3.
+              05 R-014 PIC S9(03)V9(4) COMP-3.
+              05 I-014 PIC S9(11)V99 COMP-3.
+              05 N-015 PIC X(15).
+              05 B-015 PIC S9(13)V99 COMP-3.
+              05 R-015 PIC S9(03)V9(4) COMP-3.
+              05 I-015 PIC S9(11)V99 COMP-3.
+              05 N-016 PIC X(15).
+              05 B-016 PIC S9(13)V99 COMP-3.
+              05 R-016 PIC S9(03)V9(4) COMP-3.
+              05 I-016 PIC S9(11)V99 COMP-3.
+              05 N-017 PIC X(15).
+              05 B-017 PIC S9(13)V99 COMP-3.
+              05 R-017 PIC S9(03)V9(4) COMP-3.
+              05 I-017 PIC S9(11)V99 COMP-3.
+              05 N-018 PIC X(15).
+              05 B-018 PIC S9(13)V99 COMP-3.
+              05 R-018 PIC S9(03)V9(4) COMP-3.
+              05 I-018 PIC S9(11)V99 COMP-3.
+              05 N-019 PIC X(15).
+              05 B-019 PIC S9(13)V99 COMP-3.
+              05 R-019 PIC S9(03)V9(4) COMP-3.
+              05 I-019 PIC S9(11)V99 COMP-3.
+              05 N-020 PIC X(15).
+              05 B-020 PIC S9(13)V99 COMP-3.
+              05 R-020 PIC S9(03)V9(4) COMP-3.
+              05 I-020 PIC S9(11)V99 COMP-3.
+              05 N-021 PIC X(15).
+              05 B-021 PIC S9(13)V99 COMP-3.
+              05 R-021 PIC S9(03)V9(4) COMP-3.
+              05 I-021 PIC S9(11)V99 COMP-3.
+              05 N-022 PIC X(15).
+              05 B-022 PIC S9(13)V99 COMP-3.
+              05 R-022 PIC S9(03)V9(4) COMP-3.
+              05 I-022 PIC S9(11)V99 COMP-3.
+              05 N-023 PIC X(15).
+              05 B-023 PIC S9(13)V99 COMP-3.
+              05 R-023 PIC S9(03)V9(4) COMP-3.
+              05 I-023 PIC S9(11)V99 COMP-3.
+              05 N-024 PIC X(15).
+              05 B-024 PIC S9(13)V99 COMP-3.
+              05 R-024 PIC S9(03)V9(4) COMP-3.
+              05 I-024 PIC S9(11)V99 COMP-3.
+              05 N-025 PIC X(15).
+              05 B-025 PIC S9(13)V99 COMP-3.
+              05 R-025 PIC S9(03)V9(4) COMP-3.
+              05 I-025 PIC S9(11)V99 COMP-3.
+              05 N-026 PIC X(15).
+              05 B-026 PIC S9(13)V99 COMP-3.
+              05 R-026 PIC S9(03)V9(4) COMP-3.
+              05 I-026 PIC S9(11)V99 COMP-3.
+              05 N-027 PIC X(15).
+              05 B-027 PIC S9(13)V99 COMP-3.
+              05 R-027 PIC S9(03)V9(4) COMP-3.
+              05 I-027 PIC S9(11)V99 COMP-3.
+              05 N-028 PIC X(15).
+              05 B-028 PIC S9(13)V99 COMP-3.
+              05 R-028 PIC S9(03)V9(4) COMP-3.
+              05 I-028 PIC S9(11)V99 COMP-3.
+              05 N-029 PIC X(15).
+              05 B-029 PIC S9(13)V99 COMP-3.
+              05 R-029 PIC S9(03)V9(4) COMP-3.
+              05 I-029 PIC S9(11)V99 COMP-3.
+              05 N-030 PIC X(15).
+              05 B-030 PIC S9(13)V99 COMP-3.
+              05 R-030 PIC S9(03)V9(4) COMP-3.
+              05 I-030 PIC S9(11)V99 COMP-3.
+              05 N-031 PIC X(15).
+              05 B-031 PIC S9(13)V99 COMP-3.
+              05 R-031 PIC S9(03)V9(4) COMP-3.
+              05 I-031 PIC S9(11)V99 COMP-3.
+              05 N-032 PIC X(15).
+              05 B-032 PIC S9(13)V99 COMP-3.
+              05 R-032 PIC S9(03)V9(4) COMP-3.
+              05 I-032 PIC S9(11)V99 COMP-3.
+              05 N-033 PIC X(15).
+              05 B-033 PIC S9(13)V99 COMP-3.
+              05 R-033 PIC S9(03)V9(4) COMP-3.
+              05 I-033 PIC S9(11)V99 COMP-3.
+              05 N-034 PIC X(15).
+              05 B-034 PIC S9(13)V99 COMP-3.
+              05 R-034 PIC S9(03)V9(4) COMP-3.
+              05 I-034 PIC S9(11)V99 COMP-3.
+              05 N-035 PIC X(15).
+              05 B-035 PIC S9(13)V99 COMP-3.
+              05 R-035 PIC S9(03)V9(4) COMP-3.
+              05 I-035 PIC S9(11)V99 COMP-3.
+              05 N-036 PIC X(15).
+              05 B-036 PIC S9(13)V99 COMP-3.
+              05 R-036 PIC S9(03)V9(4) COMP-3.
+              05 I-036 PIC S9(11)V99 COMP-3.
+              05 N-037 PIC X(15).
+              05 B-037 PIC S9(13)V99 COMP-3.
+              05 R-037 PIC S9(03)V9(4) COMP-3.
+              05 I-037 PIC S9(11)V99 COMP-3.
+              05 N-038 PIC X(15).
+              05 B-038 PIC S9(13)V99 COMP-3.
+              05 R-038 PIC S9(03)V9(4) COMP-3.
+              05 I-038 PIC S9(11)V99 COMP-3.
+              05 N-039 PIC X(15).
+              05 B-039 PIC S9(13)V99 COMP-3.
+              05 R-039 PIC S9(03)V9(4) COMP-3.
+              05 I-039 PIC S9(11)V99 COMP-3.
+              05 N-040 PIC X(15).
+              05 B-040 PIC S9(13)V99 COMP-3.
+              05 R-040 PIC S9(03)V9(4) COMP-3.
+              05 I-040 PIC S9(11)V99 COMP-3.
+              05 N-041 PIC X(15).
+              05 B-041 PIC S9(13)V99 COMP-3.
+              05 R-041 PIC S9(03)V9(4) COMP-3.
+              05 I-041 PIC S9(11)V99 COMP-3.
+              05 N-042 PIC X(15).
+              05 B-042 PIC S9(13)V99 COMP-3.
+              05 R-042 PIC S9(03)V9(4) COMP-3.
+              05 I-042 PIC S9(11)V99 COMP-3.
+              05 N-043 PIC X(15).
+              05 B-043 PIC S9(13)V99 COMP-3.
+              05 R-043 PIC S9(03)V9(4) COMP-3.
+              05 I-043 PIC S9(11)V99 COMP-3.
+              05 N-044 PIC X(15).
+              05 B-044 PIC S9(13)V99 COMP-3.
+              05 R-044 PIC S9(03)V9(4) COMP-3.
+              05 I-044 PIC S9(11)V99 COMP-3.
+              05 N-045 PIC X(15).
+              05 B-045 PIC S9(13)V99 COMP-3.
+              05 R-045 PIC S9(03)V9(4) COMP-3.
+              05 I-045 PIC S9(11)V99 COMP-3.
+              05 N-046 PIC X(15).
+              05 B-046 PIC S9(13)V99 COMP-3.
+              05 R-046 PIC S9(03)V9(4) COMP-3.
+              05 I-046 PIC S9(11)V99 COMP-3.
+              05 N-047 PIC X(15).
+              05 B-047 PIC S9(13)V99 COMP-3.
+              05 R-047 PIC S9(03)V9(4) COMP-3.
+              05 I-047 PIC S9(11)V99 COMP-3.
+              05 N-048 PIC X(15).
+              05 B-048 PIC S9(13)V99 COMP-3.
+              05 R-048 PIC S9(03)V9(4) COMP-3.
+              05 I-048 PIC S9(11)V99 COMP-3.
+              05 N-049 PIC X(15).
+              05 B-049 PIC S9(13)V99 COMP-3.
+              05 R-049 PIC S9(03)V9(4) COMP-3.
+              05 I-049 PIC S9(11)V99 COMP-3.
+              05 N-050 PIC X(15).
+              05 B-050 PIC S9(13)V99 COMP-3.
+              05 R-050 PIC S9(03)V9(4) COMP-3.
+              05 I-050 PIC S9(11)V99 COMP-3.
+              05 N-051 PIC X(15).
+              05 B-051 PIC S9(13)V99 COMP-3.
+              05 R-051 PIC S9(03)V9(4) COMP-3.
+              05 I-051 PIC S9(11)V99 COMP-3.
+              05 N-052 PIC X(15).
+              05 B-052 PIC S9(13)V99 COMP-3.
+              05 R-052 PIC S9(03)V9(4) COMP-3.
+              05 I-052 PIC S9(11)V99 COMP-3.
+              05 N-053 PIC X(15).
+              05 B-053 PIC S9(13)V99 COMP-3.
+              05 R-053 PIC S9(03)V9(4) COMP-3.
+              05 I-053 PIC S9(11)V99 COMP-3.
+              05 N-054 PIC X(15).
+              05 B-054 PIC S9(13)V99 COMP-3.
+              05 R-054 PIC S9(03)V9(4) COMP-3.
+              05 I-054 PIC S9(11)V99 COMP-3.
+              05 N-055 PIC X(15).
+              05 B-055 PIC S9(13)V99 COMP-3.
+              05 R-055 PIC S9(03)V9(4) COMP-3.
+              05 I-055 PIC S9(11)V99 COMP-3.
+              05 N-056 PIC X(15).
+              05 B-056 PIC S9(13)V99 COMP-3.
+              05 R-056 PIC S9(03)V9(4) COMP-3.
+              05 I-056 PIC S9(11)V99 COMP-3.
+              05 N-057 PIC X(15).
+              05 B-057 PIC S9(13)V99 COMP-3.
+              05 R-057 PIC S9(03)V9(4) COMP-3.
+              05 I-057 PIC S9(11)V99 COMP-3.
+              05 N-058 PIC X(15).
+              05 B-058 PIC S9(13)V99 COMP-3.
+              05 R-058 PIC S9(03)V9(4) COMP-3.
+              05 I-058 PIC S9(11)V99 COMP-3.
+              05 N-059 PIC X(15).
+              05 B-059 PIC S9(13)V99 COMP-3.
+              05 R-059 PIC S9(03)V9(4) COMP-3.
+              05 I-059 PIC S9(11)V99 COMP-3.
+              05 N-060 PIC X(15).
+              05 B-060 PIC S9(13)V99 COMP-3.
+              05 R-060 PIC S9(03)V9(4) COMP-3.
+              05 I-060 PIC S9(11)V99 COMP-3.
+              05 N-061 PIC X(15).
+              05 B-061 PIC S9(13)V99 COMP-3.
+              05 R-061 PIC S9(03)V9(4) COMP-3.
+              05 I-061 PIC S9(11)V99 COMP-3.
+              05 N-062 PIC X(15).
+              05 B-062 PIC S9(13)V99 COMP-3.
+              05 R-062 PIC S9(03)V9(4) COMP-3.
+              05 I-062 PIC S9(11)V99 COMP-3.
+              05 N-063 PIC X(15).
+              05 B-063 PIC S9(13)V99 COMP-3.
+              05 R-063 PIC S9(03)V9(4) COMP-3.
+              05 I-063 PIC S9(11)V99 COMP-3.
+              05 N-064 PIC X(15).
+              05 B-064 PIC S9(13)V99 COMP-3.
+              05 R-064 PIC S9(03)V9(4) COMP-3.
+              05 I-064 PIC S9(11)V99 COMP-3.
+              05 N-065 PIC X(15).
+              05 B-065 PIC S9(13)V99 COMP-3.
+              05 R-065 PIC S9(03)V9(4) COMP-3.
+              05 I-065 PIC S9(11)V99 COMP-3.
+              05 N-066 PIC X(15).
+              05 B-066 PIC S9(13)V99 COMP-3.
+              05 R-066 PIC S9(03)V9(4) COMP-3.
+              05 I-066 PIC S9(11)V99 COMP-3.
+              05 N-067 PIC X(15).
+              05 B-067 PIC S9(13)V99 COMP-3.
+              05 R-067 PIC S9(03)V9(4) COMP-3.
+              05 I-067 PIC S9(11)V99 COMP-3.
+              05 N-068 PIC X(15).
+              05 B-068 PIC S9(13)V99 COMP-3.
+              05 R-068 PIC S9(03)V9(4) COMP-3.
+              05 I-068 PIC S9(11)V99 COMP-3.
+              05 N-069 PIC X(15).
+              05 B-069 PIC S9(13)V99 COMP-3.
+              05 R-069 PIC S9(03)V9(4) COMP-3.
+              05 I-069 PIC S9(11)V99 COMP-3.
+              05 N-070 PIC X(15).
+              05 B-070 PIC S9(13)V99 COMP-3.
+              05 R-070 PIC S9(03)V9(4) COMP-3.
+              05 I-070 PIC S9(11)V99 COMP-3.
+              05 N-071 PIC X(15).
+              05 B-071 PIC S9(13)V99 COMP-3.
+              05 R-071 PIC S9(03)V9(4) COMP-3.
+              05 I-071 PIC S9(11)V99 COMP-3.
+              05 N-072 PIC X(15).
+              05 B-072 PIC S9(13)V99 COMP-3.
+              05 R-072 PIC S9(03)V9(4) COMP-3.
+              05 I-072 PIC S9(11)V99 COMP-3.
+              05 N-073 PIC X(15).
+              05 B-073 PIC S9(13)V99 COMP-3.
+              05 R-073 PIC S9(03)V9(4) COMP-3.
+              05 I-073 PIC S9(11)V99 COMP-3.
+              05 N-074 PIC X(15).
+              05 B-074 PIC S9(13)V99 COMP-3.
+              05 R-074 PIC S9(03)V9(4) COMP-3.
+              05 I-074 PIC S9(11)V99 COMP-3.
+              05 N-075 PIC X(15).
+              05 B-075 PIC S9(13)V99 COMP-3.
+              05 R-075 PIC S9(03)V9(4) COMP-3.
+              05 I-075 PIC S9(11)V99 COMP-3.
+              05 N-076 PIC X(15).
+              05 B-076 PIC S9(13)V99 COMP-3.
+              05 R-076 PIC S9(03)V9(4) COMP-3.
+              05 I-076 PIC S9(11)V99 COMP-3.
+              05 N-077 PIC X(15).
+              05 B-077 PIC S9(13)V99 COMP-3.
+              05 R-077 PIC S9(03)V9(4) COMP-3.
+              05 I-077 PIC S9(11)V99 COMP-3.
+              05 N-078 PIC X(15).
+              05 B-078 PIC S9(13)V99 COMP-3.
+              05 R-078 PIC S9(03)V9(4) COMP-3.
+              05 I-078 PIC S9(11)V99 COMP-3.
+              05 N-079 PIC X(15).
+              05 B-079 PIC S9(13)V99 COMP-3.
+              05 R-079 PIC S9(03)V9(4) COMP-3.
+              05 I-079 PIC S9(11)V99 COMP-3.
+              05 N-080 PIC X(15).
+              05 B-080 PIC S9(13)V99 COMP-3.
+              05 R-080 PIC S9(03)V9(4) COMP-3.
+              05 I-080 PIC S9(11)V99 COMP-3.
+              05 N-081 PIC X(15).
+              05 B-081 PIC S9(13)V99 COMP-3.
+              05 R-081 PIC S9(03)V9(4) COMP-3.
+              05 I-081 PIC S9(11)V99 COMP-3.
+              05 N-082 PIC X(15).
+              05 B-082 PIC S9(13)V99 COMP-3.
+              05 R-082 PIC S9(03)V9(4) COMP-3.
+              05 I-082 PIC S9(11)V99 COMP-3.
+              05 N-083 PIC X(15).
+              05 B-083 PIC S9(13)V99 COMP-3.
+              05 R-083 PIC S9(03)V9(4) COMP-3.
+              05 I-083 PIC S9(11)V99 COMP-3.
+              05 N-084 PIC X(15).
+              05 B-084 PIC S9(13)V99 COMP-3.
+              05 R-084 PIC S9(03)V9(4) COMP-3.
+              05 I-084 PIC S9(11)V99 COMP-3.
+              05 N-085 PIC X(15).
+              05 B-085 PIC S9(13)V99 COMP-3.
+              05 R-085 PIC S9(03)V9(4) COMP-3.
+              05 I-085 PIC S9(11)V99 COMP-3.
+              05 N-086 PIC X(15).
+              05 B-086 PIC S9(13)V99 COMP-3.
+              05 R-086 PIC S9(03)V9(4) COMP-3.
+              05 I-086 PIC S9(11)V99 COMP-3.
+              05 N-087 PIC X(15).
+              05 B-087 PIC S9(13)V99 COMP-3.
+              05 R-087 PIC S9(03)V9(4) COMP-3.
+              05 I-087 PIC S9(11)V99 COMP-3.
+              05 N-088 PIC X(15).
+              05 B-088 PIC S9(13)V99 COMP-3.
+              05 R-088 PIC S9(03)V9(4) COMP-3.
+              05 I-088 PIC S9(11)V99 COMP-3.
+              05 N-089 PIC X(15).
+              05 B-089 PIC S9(13)V99 COMP-3.
+              05 R-089 PIC S9(03)V9(4) COMP-3.
+              05 I-089 PIC S9(11)V99 COMP-3.
+              05 N-090 PIC X(15).
+              05 B-090 PIC S9(13)V99 COMP-3.
+              05 R-090 PIC S9(03)V9(4) COMP-3.
+              05 I-090 PIC S9(11)V99 COMP-3.
+              05 N-091 PIC X(15).
+              05 B-091 PIC S9(13)V99 COMP-3.
+              05 R-091 PIC S9(03)V9(4) COMP-3.
+              05 I-091 PIC S9(11)V99 COMP-3.
+              05 N-092 PIC X(15).
+              05 B-092 PIC S9(13)V99 COMP-3.
+              05 R-092 PIC S9(03)V9(4) COMP-3.
+              05 I-092 PIC S9(11)V99 COMP-3.
+              05 N-093 PIC X(15).
+              05 B-093 PIC S9(13)V99 COMP-3.
+              05 R-093 PIC S9(03)V9(4) COMP-3.
+              05 I-093 PIC S9(11)V99 COMP-3.
+              05 N-094 PIC X(15).
+              05 B-094 PIC S9(13)V99 COMP-3.
+              05 R-094 PIC S9(03)V9(4) COMP-3.
+              05 I-094 PIC S9(11)V99 COMP-3.
+              05 N-095 PIC X(15).
+              05 B-095 PIC S9(13)V99 COMP-3.
+              05 R-095 PIC S9(03)V9(4) COMP-3.
+              05 I-095 PIC S9(11)V99 COMP-3.
+              05 N-096 PIC X(15).
+              05 B-096 PIC S9(13)V99 COMP-3.
+              05 R-096 PIC S9(03)V9(4) COMP-3.
+              05 I-096 PIC S9(11)V99 COMP-3.
+              05 N-097 PIC X(15).
+              05 B-097 PIC S9(13)V99 COMP-3.
+              05 R-097 PIC S9(03)V9(4) COMP-3.
+              05 I-097 PIC S9(11)V99 COMP-3.
+              05 N-098 PIC X(15).
+              05 B-098 PIC S9(13)V99 COMP-3.
+              05 R-098 PIC S9(03)V9(4) COMP-3.
+              05 I-098 PIC S9(11)V99 COMP-3.
+              05 N-099 PIC X(15).
+              05 B-099 PIC S9(13)V99 COMP-3.
+              05 R-099 PIC S9(03)V9(4) COMP-3.
+              05 I-099 PIC S9(11)V99 COMP-3.
+              05 N-100 PIC X(15).
+              05 B-100 PIC S9(13)V99 COMP-3.
+              05 R-100 PIC S9(03)V9(4) COMP-3.
+              05 I-100 PIC S9(11)V99 COMP-3.
+
+           EXEC SQL INCLUDE SQLCA END-EXEC.
+
+       PROCEDURE DIVISION.
+       
+       0000-MAIN-PROCESSING.
+      *================================================================*
+      * MANUALLY UNROLLED LOGIC / UPDATE BLOCK                         *
+      *================================================================*
+       P-001.
+           COMPUTE I-001 = (B-001 * R-001) / 36500
+           ADD I-001 TO B-001
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-001
+           WHERE ACCOUNT_NUM = :N-001 END-EXEC.
+       P-002.
+           COMPUTE I-002 = (B-002 * R-002) / 36500
+           ADD I-002 TO B-002
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-002
+           WHERE ACCOUNT_NUM = :N-002 END-EXEC.
+       P-003.
+           COMPUTE I-003 = (B-003 * R-003) / 36500
+           ADD I-003 TO B-003
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-003
+           WHERE ACCOUNT_NUM = :N-003 END-EXEC.
+       P-004.
+           COMPUTE I-004 = (B-004 * R-004) / 36500
+           ADD I-004 TO B-004
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-004
+           WHERE ACCOUNT_NUM = :N-004 END-EXEC.
+       P-005.
+           COMPUTE I-005 = (B-005 * R-005) / 36500
+           ADD I-005 TO B-005
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-005
+           WHERE ACCOUNT_NUM = :N-005 END-EXEC.
+       P-006.
+           COMPUTE I-006 = (B-006 * R-006) / 36500
+           ADD I-006 TO B-006
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-006
+           WHERE ACCOUNT_NUM = :N-006 END-EXEC.
+       P-007.
+           COMPUTE I-007 = (B-007 * R-007) / 36500
+           ADD I-007 TO B-007
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-007
+           WHERE ACCOUNT_NUM = :N-007 END-EXEC.
+       P-008.
+           COMPUTE I-008 = (B-008 * R-008) / 36500
+           ADD I-008 TO B-008
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-008
+           WHERE ACCOUNT_NUM = :N-008 END-EXEC.
+       P-009.
+           COMPUTE I-009 = (B-009 * R-009) / 36500
+           ADD I-009 TO B-009
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-009
+           WHERE ACCOUNT_NUM = :N-009 END-EXEC.
+       P-010.
+           COMPUTE I-010 = (B-010 * R-010) / 36500
+           ADD I-010 TO B-010
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-010
+           WHERE ACCOUNT_NUM = :N-010 END-EXEC.
+       P-011.
+           COMPUTE I-011 = (B-011 * R-011) / 36500
+           ADD I-011 TO B-011
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-011
+           WHERE ACCOUNT_NUM = :N-011 END-EXEC.
+       P-012.
+           COMPUTE I-012 = (B-012 * R-012) / 36500
+           ADD I-012 TO B-012
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-012
+           WHERE ACCOUNT_NUM = :N-012 END-EXEC.
+       P-013.
+           COMPUTE I-013 = (B-013 * R-013) / 36500
+           ADD I-013 TO B-013
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-013
+           WHERE ACCOUNT_NUM = :N-013 END-EXEC.
+       P-014.
+           COMPUTE I-014 = (B-014 * R-014) / 36500
+           ADD I-014 TO B-014
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-014
+           WHERE ACCOUNT_NUM = :N-014 END-EXEC.
+       P-015.
+           COMPUTE I-015 = (B-015 * R-015) / 36500
+           ADD I-015 TO B-015
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-015
+           WHERE ACCOUNT_NUM = :N-015 END-EXEC.
+       P-016.
+           COMPUTE I-016 = (B-016 * R-016) / 36500
+           ADD I-016 TO B-016
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-016
+           WHERE ACCOUNT_NUM = :N-016 END-EXEC.
+       P-017.
+           COMPUTE I-017 = (B-017 * R-017) / 36500
+           ADD I-017 TO B-017
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-017
+           WHERE ACCOUNT_NUM = :N-017 END-EXEC.
+       P-018.
+           COMPUTE I-018 = (B-018 * R-018) / 36500
+           ADD I-018 TO B-018
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-018
+           WHERE ACCOUNT_NUM = :N-018 END-EXEC.
+       P-019.
+           COMPUTE I-019 = (B-019 * R-019) / 36500
+           ADD I-019 TO B-019
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-019
+           WHERE ACCOUNT_NUM = :N-019 END-EXEC.
+       P-020.
+           COMPUTE I-020 = (B-020 * R-020) / 36500
+           ADD I-020 TO B-020
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-020
+           WHERE ACCOUNT_NUM = :N-020 END-EXEC.
+       P-021.
+           COMPUTE I-021 = (B-021 * R-021) / 36500
+           ADD I-021 TO B-021
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-021
+           WHERE ACCOUNT_NUM = :N-021 END-EXEC.
+       P-022.
+           COMPUTE I-022 = (B-022 * R-022) / 36500
+           ADD I-022 TO B-022
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-022
+           WHERE ACCOUNT_NUM = :N-022 END-EXEC.
+       P-023.
+           COMPUTE I-023 = (B-023 * R-023) / 36500
+           ADD I-023 TO B-023
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-023
+           WHERE ACCOUNT_NUM = :N-023 END-EXEC.
+       P-024.
+           COMPUTE I-024 = (B-024 * R-024) / 36500
+           ADD I-024 TO B-024
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-024
+           WHERE ACCOUNT_NUM = :N-024 END-EXEC.
+       P-025.
+           COMPUTE I-025 = (B-025 * R-025) / 36500
+           ADD I-025 TO B-025
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-025
+           WHERE ACCOUNT_NUM = :N-025 END-EXEC.
+       P-026.
+           COMPUTE I-026 = (B-026 * R-026) / 36500
+           ADD I-026 TO B-026
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-026
+           WHERE ACCOUNT_NUM = :N-026 END-EXEC.
+       P-027.
+           COMPUTE I-027 = (B-027 * R-027) / 36500
+           ADD I-027 TO B-027
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-027
+           WHERE ACCOUNT_NUM = :N-027 END-EXEC.
+       P-028.
+           COMPUTE I-028 = (B-028 * R-028) / 36500
+           ADD I-028 TO B-028
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-028
+           WHERE ACCOUNT_NUM = :N-028 END-EXEC.
+       P-029.
+           COMPUTE I-029 = (B-029 * R-029) / 36500
+           ADD I-029 TO B-029
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-029
+           WHERE ACCOUNT_NUM = :N-029 END-EXEC.
+       P-030.
+           COMPUTE I-030 = (B-030 * R-030) / 36500
+           ADD I-030 TO B-030
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-030
+           WHERE ACCOUNT_NUM = :N-030 END-EXEC.
+       P-031.
+           COMPUTE I-031 = (B-031 * R-031) / 36500
+           ADD I-031 TO B-031
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-031
+           WHERE ACCOUNT_NUM = :N-031 END-EXEC.
+       P-032.
+           COMPUTE I-032 = (B-032 * R-032) / 36500
+           ADD I-032 TO B-032
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-032
+           WHERE ACCOUNT_NUM = :N-032 END-EXEC.
+       P-033.
+           COMPUTE I-033 = (B-033 * R-033) / 36500
+           ADD I-033 TO B-033
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-033
+           WHERE ACCOUNT_NUM = :N-033 END-EXEC.
+       P-034.
+           COMPUTE I-034 = (B-034 * R-034) / 36500
+           ADD I-034 TO B-034
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-034
+           WHERE ACCOUNT_NUM = :N-034 END-EXEC.
+       P-035.
+           COMPUTE I-035 = (B-035 * R-035) / 36500
+           ADD I-035 TO B-035
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-035
+           WHERE ACCOUNT_NUM = :N-035 END-EXEC.
+       P-036.
+           COMPUTE I-036 = (B-036 * R-036) / 36500
+           ADD I-036 TO B-036
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-036
+           WHERE ACCOUNT_NUM = :N-036 END-EXEC.
+       P-037.
+           COMPUTE I-037 = (B-037 * R-037) / 36500
+           ADD I-037 TO B-037
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-037
+           WHERE ACCOUNT_NUM = :N-037 END-EXEC.
+       P-038.
+           COMPUTE I-038 = (B-038 * R-038) / 36500
+           ADD I-038 TO B-038
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-038
+           WHERE ACCOUNT_NUM = :N-038 END-EXEC.
+       P-039.
+           COMPUTE I-039 = (B-039 * R-039) / 36500
+           ADD I-039 TO B-039
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-039
+           WHERE ACCOUNT_NUM = :N-039 END-EXEC.
+       P-040.
+           COMPUTE I-040 = (B-040 * R-040) / 36500
+           ADD I-040 TO B-040
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-040
+           WHERE ACCOUNT_NUM = :N-040 END-EXEC.
+       P-041.
+           COMPUTE I-041 = (B-041 * R-041) / 36500
+           ADD I-041 TO B-041
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-041
+           WHERE ACCOUNT_NUM = :N-041 END-EXEC.
+       P-042.
+           COMPUTE I-042 = (B-042 * R-042) / 36500
+           ADD I-042 TO B-042
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-042
+           WHERE ACCOUNT_NUM = :N-042 END-EXEC.
+       P-043.
+           COMPUTE I-043 = (B-043 * R-043) / 36500
+           ADD I-043 TO B-043
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-043
+           WHERE ACCOUNT_NUM = :N-043 END-EXEC.
+       P-044.
+           COMPUTE I-044 = (B-044 * R-044) / 36500
+           ADD I-044 TO B-044
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-044
+           WHERE ACCOUNT_NUM = :N-044 END-EXEC.
+       P-045.
+           COMPUTE I-045 = (B-045 * R-045) / 36500
+           ADD I-045 TO B-045
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-045
+           WHERE ACCOUNT_NUM = :N-045 END-EXEC.
+       P-046.
+           COMPUTE I-046 = (B-046 * R-046) / 36500
+           ADD I-046 TO B-046
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-046
+           WHERE ACCOUNT_NUM = :N-046 END-EXEC.
+       P-047.
+           COMPUTE I-047 = (B-047 * R-047) / 36500
+           ADD I-047 TO B-047
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-047
+           WHERE ACCOUNT_NUM = :N-047 END-EXEC.
+       P-048.
+           COMPUTE I-048 = (B-048 * R-048) / 36500
+           ADD I-048 TO B-048
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-048
+           WHERE ACCOUNT_NUM = :N-048 END-EXEC.
+       P-049.
+           COMPUTE I-049 = (B-049 * R-049) / 36500
+           ADD I-049 TO B-049
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-049
+           WHERE ACCOUNT_NUM = :N-049 END-EXEC.
+       P-050.
+           COMPUTE I-050 = (B-050 * R-050) / 36500
+           ADD I-050 TO B-050
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-050
+           WHERE ACCOUNT_NUM = :N-050 END-EXEC.
+       P-051.
+           COMPUTE I-051 = (B-051 * R-051) / 36500
+           ADD I-051 TO B-051
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-051
+           WHERE ACCOUNT_NUM = :N-051 END-EXEC.
+       P-052.
+           COMPUTE I-052 = (B-052 * R-052) / 36500
+           ADD I-052 TO B-052
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-052
+           WHERE ACCOUNT_NUM = :N-052 END-EXEC.
+       P-053.
+           COMPUTE I-053 = (B-053 * R-053) / 36500
+           ADD I-053 TO B-053
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-053
+           WHERE ACCOUNT_NUM = :N-053 END-EXEC.
+       P-054.
+           COMPUTE I-054 = (B-054 * R-054) / 36500
+           ADD I-054 TO B-054
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-054
+           WHERE ACCOUNT_NUM = :N-054 END-EXEC.
+       P-055.
+           COMPUTE I-055 = (B-055 * R-055) / 36500
+           ADD I-055 TO B-055
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-055
+           WHERE ACCOUNT_NUM = :N-055 END-EXEC.
+       P-056.
+           COMPUTE I-056 = (B-056 * R-056) / 36500
+           ADD I-056 TO B-056
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-056
+           WHERE ACCOUNT_NUM = :N-056 END-EXEC.
+       P-057.
+           COMPUTE I-057 = (B-057 * R-057) / 36500
+           ADD I-057 TO B-057
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-057
+           WHERE ACCOUNT_NUM = :N-057 END-EXEC.
+       P-058.
+           COMPUTE I-058 = (B-058 * R-058) / 36500
+           ADD I-058 TO B-058
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-058
+           WHERE ACCOUNT_NUM = :N-058 END-EXEC.
+       P-059.
+           COMPUTE I-059 = (B-059 * R-059) / 36500
+           ADD I-059 TO B-059
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-059
+           WHERE ACCOUNT_NUM = :N-059 END-EXEC.
+       P-060.
+           COMPUTE I-060 = (B-060 * R-060) / 36500
+           ADD I-060 TO B-060
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-060
+           WHERE ACCOUNT_NUM = :N-060 END-EXEC.
+       P-061.
+           COMPUTE I-061 = (B-061 * R-061) / 36500
+           ADD I-061 TO B-061
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-061
+           WHERE ACCOUNT_NUM = :N-061 END-EXEC.
+       P-062.
+           COMPUTE I-062 = (B-062 * R-062) / 36500
+           ADD I-062 TO B-062
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-062
+           WHERE ACCOUNT_NUM = :N-062 END-EXEC.
+       P-063.
+           COMPUTE I-063 = (B-063 * R-063) / 36500
+           ADD I-063 TO B-063
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-063
+           WHERE ACCOUNT_NUM = :N-063 END-EXEC.
+       P-064.
+           COMPUTE I-064 = (B-064 * R-064) / 36500
+           ADD I-064 TO B-064
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-064
+           WHERE ACCOUNT_NUM = :N-064 END-EXEC.
+       P-065.
+           COMPUTE I-065 = (B-065 * R-065) / 36500
+           ADD I-065 TO B-065
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-065
+           WHERE ACCOUNT_NUM = :N-065 END-EXEC.
+       P-066.
+           COMPUTE I-066 = (B-066 * R-066) / 36500
+           ADD I-066 TO B-066
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-066
+           WHERE ACCOUNT_NUM = :N-066 END-EXEC.
+       P-067.
+           COMPUTE I-067 = (B-067 * R-067) / 36500
+           ADD I-067 TO B-067
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-067
+           WHERE ACCOUNT_NUM = :N-067 END-EXEC.
+       P-068.
+           COMPUTE I-068 = (B-068 * R-068) / 36500
+           ADD I-068 TO B-068
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-068
+           WHERE ACCOUNT_NUM = :N-068 END-EXEC.
+       P-069.
+           COMPUTE I-069 = (B-069 * R-069) / 36500
+           ADD I-069 TO B-069
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-069
+           WHERE ACCOUNT_NUM = :N-069 END-EXEC.
+       P-070.
+           COMPUTE I-070 = (B-070 * R-070) / 36500
+           ADD I-070 TO B-070
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-070
+           WHERE ACCOUNT_NUM = :N-070 END-EXEC.
+       P-071.
+           COMPUTE I-071 = (B-071 * R-071) / 36500
+           ADD I-071 TO B-071
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-071
+           WHERE ACCOUNT_NUM = :N-071 END-EXEC.
+       P-072.
+           COMPUTE I-072 = (B-072 * R-072) / 36500
+           ADD I-072 TO B-072
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-072
+           WHERE ACCOUNT_NUM = :N-072 END-EXEC.
+       P-073.
+           COMPUTE I-073 = (B-073 * R-073) / 36500
+           ADD I-073 TO B-073
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-073
+           WHERE ACCOUNT_NUM = :N-073 END-EXEC.
+       P-074.
+           COMPUTE I-074 = (B-074 * R-074) / 36500
+           ADD I-074 TO B-074
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-074
+           WHERE ACCOUNT_NUM = :N-074 END-EXEC.
+       P-075.
+           COMPUTE I-075 = (B-075 * R-075) / 36500
+           ADD I-075 TO B-075
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-075
+           WHERE ACCOUNT_NUM = :N-075 END-EXEC.
+       P-076.
+           COMPUTE I-076 = (B-076 * R-076) / 36500
+           ADD I-076 TO B-076
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-076
+           WHERE ACCOUNT_NUM = :N-076 END-EXEC.
+       P-077.
+           COMPUTE I-077 = (B-077 * R-077) / 36500
+           ADD I-077 TO B-077
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-077
+           WHERE ACCOUNT_NUM = :N-077 END-EXEC.
+       P-078.
+           COMPUTE I-078 = (B-078 * R-078) / 36500
+           ADD I-078 TO B-078
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-078
+           WHERE ACCOUNT_NUM = :N-078 END-EXEC.
+       P-079.
+           COMPUTE I-079 = (B-079 * R-079) / 36500
+           ADD I-079 TO B-079
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-079
+           WHERE ACCOUNT_NUM = :N-079 END-EXEC.
+       P-080.
+           COMPUTE I-080 = (B-080 * R-080) / 36500
+           ADD I-080 TO B-080
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-080
+           WHERE ACCOUNT_NUM = :N-080 END-EXEC.
+       P-081.
+           COMPUTE I-081 = (B-081 * R-081) / 36500
+           ADD I-081 TO B-081
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-081
+           WHERE ACCOUNT_NUM = :N-081 END-EXEC.
+       P-082.
+           COMPUTE I-082 = (B-082 * R-082) / 36500
+           ADD I-082 TO B-082
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-082
+           WHERE ACCOUNT_NUM = :N-082 END-EXEC.
+       P-083.
+           COMPUTE I-083 = (B-083 * R-083) / 36500
+           ADD I-083 TO B-083
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-083
+           WHERE ACCOUNT_NUM = :N-083 END-EXEC.
+       P-084.
+           COMPUTE I-084 = (B-084 * R-084) / 36500
+           ADD I-084 TO B-084
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-084
+           WHERE ACCOUNT_NUM = :N-084 END-EXEC.
+       P-085.
+           COMPUTE I-085 = (B-085 * R-085) / 36500
+           ADD I-085 TO B-085
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-085
+           WHERE ACCOUNT_NUM = :N-085 END-EXEC.
+       P-086.
+           COMPUTE I-086 = (B-086 * R-086) / 36500
+           ADD I-086 TO B-086
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-086
+           WHERE ACCOUNT_NUM = :N-086 END-EXEC.
+       P-087.
+           COMPUTE I-087 = (B-087 * R-087) / 36500
+           ADD I-087 TO B-087
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-087
+           WHERE ACCOUNT_NUM = :N-087 END-EXEC.
+       P-088.
+           COMPUTE I-088 = (B-088 * R-088) / 36500
+           ADD I-088 TO B-088
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-088
+           WHERE ACCOUNT_NUM = :N-088 END-EXEC.
+       P-089.
+           COMPUTE I-089 = (B-089 * R-089) / 36500
+           ADD I-089 TO B-089
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-089
+           WHERE ACCOUNT_NUM = :N-089 END-EXEC.
+       P-090.
+           COMPUTE I-090 = (B-090 * R-090) / 36500
+           ADD I-090 TO B-090
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-090
+           WHERE ACCOUNT_NUM = :N-090 END-EXEC.
+       P-091.
+           COMPUTE I-091 = (B-091 * R-091) / 36500
+           ADD I-091 TO B-091
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-091
+           WHERE ACCOUNT_NUM = :N-091 END-EXEC.
+       P-092.
+           COMPUTE I-092 = (B-092 * R-092) / 36500
+           ADD I-092 TO B-092
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-092
+           WHERE ACCOUNT_NUM = :N-092 END-EXEC.
+       P-093.
+           COMPUTE I-093 = (B-093 * R-093) / 36500
+           ADD I-093 TO B-093
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-093
+           WHERE ACCOUNT_NUM = :N-093 END-EXEC.
+       P-094.
+           COMPUTE I-094 = (B-094 * R-094) / 36500
+           ADD I-094 TO B-094
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-094
+           WHERE ACCOUNT_NUM = :N-094 END-EXEC.
+       P-095.
+           COMPUTE I-095 = (B-095 * R-095) / 36500
+           ADD I-095 TO B-095
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-095
+           WHERE ACCOUNT_NUM = :N-095 END-EXEC.
+       P-096.
+           COMPUTE I-096 = (B-096 * R-096) / 36500
+           ADD I-096 TO B-096
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-096
+           WHERE ACCOUNT_NUM = :N-096 END-EXEC.
+       P-097.
+           COMPUTE I-097 = (B-097 * R-097) / 36500
+           ADD I-097 TO B-097
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-097
+           WHERE ACCOUNT_NUM = :N-097 END-EXEC.
+       P-098.
+           COMPUTE I-098 = (B-098 * R-098) / 36500
+           ADD I-098 TO B-098
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-098
+           WHERE ACCOUNT_NUM = :N-098 END-EXEC.
+       P-099.
+           COMPUTE I-099 = (B-099 * R-099) / 36500
+           ADD I-099 TO B-099
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-099
+           WHERE ACCOUNT_NUM = :N-099 END-EXEC.
+       P-100.
+           COMPUTE I-100 = (B-100 * R-100) / 36500
+           ADD I-100 TO B-100
+           EXEC SQL UPDATE ACCMASTER SET CURRENT_BALANCE = :B-100
+           WHERE ACCOUNT_NUM = :N-100 END-EXEC.
+           
+       9999-TERMINATION.
+           EXEC SQL COMMIT END-EXEC.
+           GOBACK.

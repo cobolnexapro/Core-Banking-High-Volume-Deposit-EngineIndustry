@@ -1,0 +1,444 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. AML_SCAN.
+       AUTHOR.     Nexapro.
+       DATE-WRITTEN. JUNE 21, 2026.
+       DATE-COMPILED. JUNE 21, 2026.
+      ******************************************************************
+      * *
+      * MODULE NAME: AML_SCAN                                          *
+      * PURPOSE:     REAL-TIME ANTI-MONEY LAUNDERING (AML) POLICY      *
+      * EVALUATION LAYER TRIGGERED IMMEDIATELY AFTER A    *
+      * TRANSACTION IS PROCESSED.                         *
+      * *
+      * ARCHITECTURE: IBM i ILE COBOL WITH EMBEDDED SQL (DB2 FOR I)    *
+      * *
+      * DESCRIPTION:                                                   *
+      * THIS PROGRAM INGESTS CORE TRANSACTION METADATA VIA THE       *
+      * LINKAGE SECTION, AND SUBSEQUENTLY PERFORMS AGGREGATE         *
+      * ANALYTICS AGAINST HISTORICAL TRANSACTION DATA RETAINED       *
+      * WITHIN THE PHYSICAL FILE 'TXNJRNPF' (JOURNAL LOG FILE).      *
+      * *
+      * TWO MAIN COMPLIANCE POLICIES ARE ENFORCED:                   *
+      * 1. 24-HOUR CASH AGGREGATION VALUE THRESHOLD ($10,000.00)     *
+      * 2. 1-HOUR TRANSACTION VELOCITY ATTACK COUNT (> 5 TXNS)       *
+      * *
+      * IF EITHER BREACH OCCURS, AN INTERNAL RISK PROFILE IS         *
+      * COMPILED AND AN AUDIT TRAIL LOG IS WRITTEN TO THE REGULATORY *
+      * ALERT PHYSICAL FILE 'AMLALERTPF'. AN ACTIONABLE ALERT FLAG  *
+      * IS RETURNED TO THE CALLING CORE TRANSACTION ENGINE.          *
+      * *
+      ******************************************************************
+
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       SPECIAL-NAMES.
+           LINKAGE SYSTEM IS "OS400".
+
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+
+       DATA DIVISION.
+       FILE SECTION.
+
+       WORKING-STORAGE SECTION.
+      ******************************************************************
+      * DB2 EMBEDDED SQL COMMUNICATION AREA                            *
+      ******************************************************************
+           EXEC SQL 
+               INCLUDE SQLCA 
+           END-EXEC.
+
+      ******************************************************************
+      * SYSTEM CONSTANTS & CONFIGURATION HARDENING                      *
+      ******************************************************************
+       01 WS-CONSTANTS.
+          05 C-CASH-THRESHOLD        PIC S9(11)V99 COMP-3 VALUE 10000.00.
+          05 C-VELOCITY-LIMIT        PIC S9(4) COMP       VALUE 5.
+          05 C-CASH-TXN-TYPE         PIC X(4)             VALUE "CASH".
+          05 C-ALERT-ACTIVE          PIC X(1)             VALUE "Y".
+          05 C-ALERT-CLEAN           PIC X(1)             VALUE "N".
+          05 C-STATUS-CRITICAL       PIC X(2)             VALUE "01".
+          05 C-STATUS-WARNING        PIC X(2)             VALUE "02".
+          05 C-STATUS-SUCCESS        PIC X(2)             VALUE "00".
+
+      ******************************************************************
+      * EMBEDDED SQL HOST VARIABLES                                    *
+      ******************************************************************
+       01 WS-SQL-HOST-VARIABLES.
+          05 HV-ACCT-NO              PIC 9(12).
+          05 HV-CURRENT-AMT          PIC S9(11)V99 COMP-3.
+          05 HV-TXN-LOCATION         PIC X(10).
+          05 HV-CASH-SUM-24H         PIC S9(11)V99 COMP-3.
+          05 HV-DISTINCT-COUNT-1H    PIC S9(9) COMP.
+          
+          05 HV-ALERT-ID             PIC S9(15) COMP-4.
+          05 HV-VIOLATION-TYPE       PIC X(20).
+          05 HV-RISK-SCORE           PIC S9(4) COMP.
+          05 HV-ALERT-TIMESTAMP      PIC X(26).
+          05 HV-ERR-DESC             PIC X(100).
+
+      ******************************************************************
+      * EMBEDDED SQL NULL VALUE INDICATORS                             *
+      ******************************************************************
+       01 WS-SQL-INDICATORS.
+          05 IND-CASH-SUM-24H        PIC S9(4) COMP.
+          05 IND-DISTINCT-COUNT-1H   PIC S9(4) COMP.
+
+      ******************************************************************
+      * INTERNAL EVALUATION REGISTERS AND TRACKING COUNTERS            *
+      ******************************************************************
+       01 WS-COMPLIANCE-METRICS.
+          05 WS-CALC-TOTAL-CASH      PIC S9(11)V99 COMP-3 VALUE 0.
+          05 WS-CALC-VELOCITY-CNT    PIC S9(9) COMP       VALUE 0.
+          05 WS-RISK-ACCUMULATOR     PIC S9(4) COMP       VALUE 0.
+          05 WS-BREACH-INDICATORS.
+             10 WS-CASH-BREACH-FLG    PIC X(1)             VALUE "N".
+                88 CASH-LIMIT-BREACHED                    VALUE "Y".
+             10 WS-VELOCITY-BREACH-FLG PIC X(1)             VALUE "N".
+                88 VELOCITY-BREACHED                      VALUE "Y".
+
+      ******************************************************************
+      * ENRICHED ACCOUNT HOLDER METADATA STRUCTURE (MOCK/DERIVED)      *
+      ******************************************************************
+       01 WS-ACCOUNT-METADATA.
+          05 WS-CUST-ID              PIC X(10)            VALUE "CUST-UNKNOWN".
+          05 WS-CUST-SEGMENT         PIC X(10)            VALUE "RETAIL".
+          05 WS-RISK-CLASSIFICATION  PIC X(12)            VALUE "MEDIUM".
+
+      ******************************************************************
+      * COMPREHENSIVE INTERNAL VIOLATION LOG DATA STRUCTURE            *
+      ******************************************************************
+       01 WS-VIOLATION-RECORD.
+          05 WS-VIO-ACCT-NO          PIC 9(12).
+          05 WS-VIO-TIMESTAMP        PIC X(26).
+          05 WS-VIO-PRIMARY-REASON   PIC X(30).
+          05 WS-VIO-RISK-SCORE       PIC 9(3).
+          05 WS-VIO-CASH-SUM-24H     PIC Z,ZZZ,ZZZ,ZZ9.99.
+          05 WS-VIO-VEL-COUNT-1H     PIC ZZZ,ZZ9.
+          05 WS-VIO-LOCATION         PIC X(10).
+
+      ******************************************************************
+      * ERROR HANDLING AND SYSTEM DIAGNOSTIC WORK AREAS               *
+      ******************************************************************
+       01 WS-DIAGNOSTIC-BLOCK.
+          05 WS-SQLSTATE-DISPLAY     PIC X(5).
+          05 WS-SQLCODE-DISPLAY     PIC S9(9) SIGN LEADING SEPARATE.
+          05 WS-ERR-STAGE            PIC X(40)            VALUE SPACES.
+
+      ******************************************************************
+      * LINKAGE SECTION - REAL-TIME TRANSACTION METADATA INGESTION     *
+      ******************************************************************
+       LINKAGE SECTION.
+       01 LK-ACCOUNT-NUMBER          PIC 9(12).
+       01 LK-CURRENT-TXN-AMOUNT      PIC S9(11)V99 COMP-3.
+       01 LK-TXN-LOCATION            PIC X(10).
+       01 LK-ALERT-FLAG              PIC X(01).
+       01 LK-RETURN-CODE             PIC X(02).
+       01 LK-ERROR-MESSAGE           PIC X(100).
+
+       PROCEDURE DIVISION USING LK-ACCOUNT-NUMBER
+                                LK-CURRENT-TXN-AMOUNT
+                                LK-TXN-LOCATION
+                                LK-ALERT-FLAG
+                                LK-RETURN-CODE
+                                LK-ERROR-MESSAGE.
+
+      ******************************************************************
+      * 0000-MAIN-LINE ORCHESTRATION PARAGRAPH                          *
+      ******************************************************************
+       0000-MAIN-LINE.
+           PERFORM 1000-INITIALIZE-MODULE
+              THRU 1000-INITIALIZE-EXIT.
+
+           PERFORM 2000-PROCESS-AML-RULES
+              THRU 2000-PROCESS-AML-EXIT.
+
+           IF CASH-LIMIT-BREACHED OR VELOCITY-BREACHED
+               PERFORM 4000-EXECUTE-ALERT-GENERATION
+                  THRU 4000-EXECUTE-ALERT-EXIT
+           ELSE
+               MOVE C-ALERT-CLEAN   TO LK-ALERT-FLAG
+               MOVE C-STATUS-SUCCESS TO LK-RETURN-CODE
+               MOVE "TRANSACTION PASSED COMPLIANCE SCAN." 
+                 TO LK-ERROR-MESSAGE
+           END-IF.
+
+           PERFORM 9000-TERMINATE-MODULE
+              THRU 9000-TERMINATE-EXIT.
+
+      ******************************************************************
+      * 1000-INITIALIZE-MODULE PARAGRAPH                               *
+      ******************************************************************
+       1000-INITIALIZE-MODULE.
+           MOVE SPACES             TO LK-ERROR-MESSAGE
+           MOVE C-ALERT-CLEAN      TO LK-ALERT-FLAG
+           MOVE C-STATUS-SUCCESS   TO LK-RETURN-CODE
+           
+           MOVE ZEROES             TO WS-CALC-TOTAL-CASH
+                                      WS-CALC-VELOCITY-CNT
+                                      WS-RISK-ACCUMULATOR
+           
+           MOVE "N"                TO WS-CASH-BREACH-FLG
+                                      WS-VELOCITY-BREACH-FLG
+           
+           MOVE SPACES             TO WS-DIAGNOSTIC-BLOCK
+           MOVE "INITIALIZE"       TO WS-ERR-STAGE
+
+           IF LK-ACCOUNT-NUMBER NOT NUMERIC OR LK-ACCOUNT-NUMBER = ZEROES
+              MOVE "03"            TO LK-RETURN-CODE
+              MOVE "FATAL: INVALID OR BLANK ACCOUNT NUMBER PROVIDED." 
+                TO LK-ERROR-MESSAGE
+              MOVE C-ALERT-ACTIVE  TO LK-ALERT-FLAG
+              PERFORM 9000-TERMINATE-MODULE
+           END-IF.
+
+           MOVE LK-ACCOUNT-NUMBER  TO HV-ACCT-NO
+           MOVE LK-CURRENT-TXN-AMOUNT TO HV-CURRENT-AMT
+           MOVE LK-TXN-LOCATION    TO HV-TXN-LOCATION.
+
+       1000-INITIALIZE-EXIT.
+           EXIT.
+
+      ******************************************************************
+      * 2000-PROCESS-AML-RULES PARAGRAPH                               *
+      ******************************************************************
+       2000-PROCESS-AML-RULES.
+           MOVE "EVALUATING 24H CASH AGGREGATION" TO WS-ERR-STAGE.
+           PERFORM 2100-CHECK-CASH-THRESHOLD
+              THRU 2100-CHECK-CASH-EXIT.
+
+           MOVE "EVALUATING 1H TRANSACTION VELOCITY" TO WS-ERR-STAGE.
+           PERFORM 2200-CHECK-VELOCITY-LIMIT
+              THRU 2200-CHECK-VELOCITY-EXIT.
+
+           PERFORM 3000-AGGREGATE-RISK-PROFILE
+              THRU 3000-AGGREGATE-RISK-EXIT.
+
+       2000-PROCESS-AML-EXIT.
+           EXIT.
+
+      ******************************************************************
+      * 2100-CHECK-CASH-THRESHOLD PARAGRAPH                            *
+      ******************************************************************
+       2100-CHECK-CASH-THRESHOLD.
+           MOVE ZEROES TO HV-CASH-SUM-24H
+           MOVE ZEROES TO IND-CASH-SUM-24H
+
+           EXEC SQL
+               SELECT COALESCE(SUM(TXN_AMT), 0)
+               INTO :HV-CASH-SUM-24H :IND-CASH-SUM-24H
+               FROM TXNJRNPF
+               WHERE ACCT_NO = :HV-ACCT-NO
+                 AND TXN_TYPE = :C-CASH-TXN-TYPE
+                 AND TXN_TS >= CURRENT TIMESTAMP - 24 HOURS
+           END-EXEC.
+
+           IF SQLCODE NOT = 0 AND SQLCODE NOT = 100
+              MOVE "SQL ERR: 24H CASH AGGREGATION QUERY" TO WS-ERR-STAGE
+              PERFORM 9900-HANDLE-SQL-ERROR
+                 THRU 9900-HANDLE-SQL-EXIT
+           END-IF.
+
+           IF IND-CASH-SUM-24H < 0
+              MOVE ZEROES TO WS-CALC-TOTAL-CASH
+           ELSE
+              ADD HV-CASH-SUM-24H TO WS-CALC-TOTAL-CASH
+           END-IF.
+
+           IF HV-TXN-LOCATION = "ATM-CASH" OR "BRANCH-CSH"
+              ADD HV-CURRENT-AMT TO WS-CALC-TOTAL-CASH
+           END-IF.
+
+           IF WS-CALC-TOTAL-CASH > C-CASH-THRESHOLD
+              MOVE "Y" TO WS-CASH-BREACH-FLG
+           END-IF.
+
+       2100-CHECK-CASH-EXIT.
+           EXIT.
+
+      ******************************************************************
+      * 2200-CHECK-VELOCITY-LIMIT PARAGRAPH                            *
+      ******************************************************************
+       2200-CHECK-VELOCITY-LIMIT.
+           MOVE ZEROES TO HV-DISTINCT-COUNT-1H
+           MOVE ZEROES TO IND-DISTINCT-COUNT-1H
+
+           EXEC SQL
+               SELECT COUNT(*)
+               INTO :HV-DISTINCT-COUNT-1H :IND-DISTINCT-COUNT-1H
+               FROM TXNJRNPF
+               WHERE ACCT_NO = :HV-ACCT-NO
+                 AND TXN_TS >= CURRENT TIMESTAMP - 1 HOUR
+           END-EXEC.
+
+           IF SQLCODE NOT = 0 AND SQLCODE NOT = 100
+              MOVE "SQL ERR: 1H VELOCITY COUNT QUERY" TO WS-ERR-STAGE
+              PERFORM 9900-HANDLE-SQL-ERROR
+                 THRU 9900-HANDLE-SQL-EXIT
+           END-IF.
+
+           IF IND-DISTINCT-COUNT-1H < 0
+              MOVE ZEROES TO WS-CALC-VELOCITY-CNT
+           ELSE
+              MOVE HV-DISTINCT-COUNT-1H TO WS-CALC-VELOCITY-CNT
+           END-IF.
+
+           ADD 1 TO WS-CALC-VELOCITY-CNT.
+
+           IF WS-CALC-VELOCITY-CNT > C-VELOCITY-LIMIT
+              MOVE "Y" TO WS-VELOCITY-BREACH-FLG
+           END-IF.
+
+       2200-CHECK-VELOCITY-LIMIT-EXIT.
+           EXIT.
+
+      ******************************************************************
+      * 3000-AGGREGATE-RISK-PROFILE PARAGRAPH                         *
+      ******************************************************************
+       3000-AGGREGATE-RISK-PROFILE.
+           IF CASH-LIMIT-BREACHED
+              ADD 45 TO WS-RISK-ACCUMULATOR
+           END-IF.
+
+           IF VELOCITY-BREACHED
+              ADD 50 TO WS-RISK-ACCUMULATOR
+           END-IF.
+
+           IF CASH-LIMIT-BREACHED AND VELOCITY-BREACHED
+              ADD 5 TO WS-RISK-ACCUMULATOR
+           END-IF.
+
+           IF WS-RISK-ACCUMULATOR > 100
+              MOVE 100 TO WS-RISK-ACCUMULATOR
+           END-IF.
+
+           PERFORM 3500-ENRICH-METADATA
+              THRU 3500-ENRICH-METADATA-EXIT.
+
+       3000-AGGREGATE-RISK-EXIT.
+           EXIT.
+
+      ******************************************************************
+      * 3500-ENRICH-METADATA PARAGRAPH                                 *
+      ******************************************************************
+       3500-ENRICH-METADATA.
+           MOVE LK-ACCOUNT-NUMBER   TO WS-VIO-ACCT-NO
+           MOVE WS-CALC-TOTAL-CASH  TO WS-VIO-CASH-SUM-24H
+           MOVE WS-CALC-VELOCITY-CNT TO WS-VIO-VEL-COUNT-1H
+           MOVE LK-TXN-LOCATION     TO WS-VIO-LOCATION
+           MOVE WS-RISK-ACCUMULATOR TO WS-VIO-RISK-SCORE.
+
+           IF CASH-LIMIT-BREACHED AND VELOCITY-BREACHED
+              MOVE "COMBINED-STRUC-CASH" TO WS-VIO-PRIMARY-REASON
+           ELSE
+              IF CASH-LIMIT-BREACHED
+                 MOVE "EXCESSIVE-CASH-24H" TO WS-VIO-PRIMARY-REASON
+              ELSE
+                 MOVE "VELOCITY-ATTACK-1H" TO WS-VIO-PRIMARY-REASON
+              END-IF
+           END-IF.
+
+       3500-ENRICH-METADATA-EXIT.
+           EXIT.
+
+      ******************************************************************
+      * 4000-EXECUTE-ALERT-GENERATION PARAGRAPH                         *
+      ******************************************************************
+       4000-EXECUTE-ALERT-GENERATION.
+           MOVE C-ALERT-ACTIVE    TO LK-ALERT-FLAG
+           MOVE C-STATUS-CRITICAL TO LK-RETURN-CODE
+           
+           MOVE "CRITICAL REGULATORY VIOLATION LOGGED TO AMLALERTPF" 
+             TO LK-ERROR-MESSAGE
+
+           EXEC SQL
+               SELECT VALUES(CURRENT TIMESTAMP)
+               INTO :HV-ALERT-TIMESTAMP
+               FROM SYSIBM.SYSDUMMY1
+           END-EXEC.
+
+           MOVE WS-VIO-PRIMARY-REASON TO HV-VIOLATION-TYPE
+           MOVE WS-RISK-ACCUMULATOR   TO HV-RISK-SCORE
+           MOVE WS-VIO-PRIMARY-REASON TO HV-ERR-DESC.
+
+           PERFORM 4500-INSERT-ALERT-LOG
+              THRU 4500-INSERT-ALERT-EXIT.
+
+       4000-EXECUTE-ALERT-EXIT.
+           EXIT.
+
+      ******************************************************************
+      * 4500-INSERT-ALERT-LOG PARAGRAPH                                *
+      ******************************************************************
+       4500-INSERT-ALERT-LOG.
+           MOVE "EXECUTING AMLALERTPF INSERT" TO WS-ERR-STAGE.
+
+           EXEC SQL
+               INSERT INTO AMLALERTPF 
+               (
+                   ACCT_NO,
+                   ALERT_TS,
+                   VIOLATION_TYPE,
+                   RISK_SCORE,
+                   TOTAL_CASH_AMT,
+                   TXN_COUNT,
+                   ALERT_STATUS,
+                   TXN_LOC,
+                   ERR_DESC
+               )
+               VALUES 
+               (
+                   :HV-ACCT-NO,
+                   :HV-ALERT-TIMESTAMP,
+                   :HV-VIOLATION-TYPE,
+                   :HV-RISK-SCORE,
+                   :HV-CASH-SUM-24H,
+                   :HV-DISTINCT-COUNT-1H,
+                   :C-ALERT-ACTIVE,
+                   :HV-TXN-LOCATION,
+                   :HV-ERR-DESC
+               )
+           END-EXEC.
+
+           IF SQLCODE NOT = 0
+              MOVE "SQL ERR: EMERGENCY LOG TO AMLALERTPF" TO WS-ERR-STAGE
+              PERFORM 9900-HANDLE-SQL-ERROR
+                 THRU 9900-HANDLE-SQL-EXIT
+           END-IF.
+
+       4500-INSERT-ALERT-EXIT.
+           EXIT.
+
+      ******************************************************************
+      * 9000-TERMINATE-MODULE PARAGRAPH                                *
+      ******************************************************************
+       9000-TERMINATE-MODULE.
+           GOBACK.
+
+       9000-TERMINATE-EXIT.
+           EXIT.
+
+      ******************************************************************
+      * 9900-HANDLE-SQL-ERROR PARAGRAPH                                *
+      ******************************************************************
+       9900-HANDLE-SQL-ERROR.
+           MOVE SQLSTATE TO WS-SQLSTATE-DISPLAY
+           MOVE SQLCODE  TO WS-SQLCODE-DISPLAY
+           
+           MOVE "04"     TO LK-RETURN-CODE
+           MOVE C-ALERT-ACTIVE TO LK-ALERT-FLAG
+           
+           STRING "CRITICAL SQL EXCEPTION CAUGHT AT STAGE: " DELIMITED BY SIZE
+                  WS-ERR-STAGE DELIMITED BY "  "
+                  " | SQLCODE: " DELIMITED BY SIZE
+                  WS-SQLCODE-DISPLAY DELIMITED BY SIZE
+                  " | SQLSTATE: " DELIMITED BY SIZE
+                  WS-SQLSTATE-DISPLAY DELIMITED BY SIZE
+             INTO LK-ERROR-MESSAGE.
+
+           PERFORM 9000-TERMINATE-MODULE.
+
+       9900-HANDLE-SQL-EXIT.
+           EXIT.

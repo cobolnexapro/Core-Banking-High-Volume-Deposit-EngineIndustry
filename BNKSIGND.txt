@@ -1,0 +1,14 @@
+A                                      DSPSIZ(24 80 *DS3)
+     A                                      CA03(03 'Exit')
+     A          R SIGNFMT
+     A                                  1 30'CORE BANKING SIGN-ON'
+     A                                      DSPATR(HI)
+     A                                  4  5'Teller ID . . :'
+     A            SCRID          8A  I  4 22
+     A                                  5  5'Password  . . :'
+     A            SCRPWD        10A  I  5 22DSPATR(ND)
+     A                                  7  5'2FA Token . . :'
+     A            SCRTKN         6Y 0I  7 22
+     A            ERRMSG        40A  O 22  5DSPATR(HI)
+     A                                      COLOR(RED)
+     A                                 23  2'F3=Exit'

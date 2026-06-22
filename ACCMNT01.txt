@@ -1,0 +1,266 @@
+      IDENTIFICATION DIVISION.
+       PROGRAM-ID. ACCMNT01.
+       AUTHOR. Nexapro.
+       DATE-WRITTEN. JUNE 2026.
+       
+      ******************************************************************
+      * PROGRAM: ACCMNT01
+      * PURPOSE: ACCOUNT MAINTENANCE & KYC COMPLIANCE VERIFICATION
+      * ACCESS : RLA (ACCMASTER) AND EMBEDDED SQL (KYCDOCPF)
+      * REQ    : STRICT RECORD LOCKING, YYYYMMDD DATE COMPARISONS
+      ******************************************************************
+       
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-ISERIES.
+       OBJECT-COMPUTER. IBM-ISERIES.
+       
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *----------------------------------------------------------------*
+      * ACCMASTER: ACCOUNT MASTER PHYSICAL FILE (I-O DYNAMIC)          *
+      *----------------------------------------------------------------*
+           SELECT ACCMASTER
+               ASSIGN TO DATABASE-ACCMASTER
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS AC-ACCT-NUM
+               FILE STATUS IS WS-ACCMASTER-STATUS.
+
+      *----------------------------------------------------------------*
+      * DSPFILE: WORKSTATION / DISPLAY FILE FOR TELLER UI              *
+      *----------------------------------------------------------------*
+           SELECT TELLER-DSP
+               ASSIGN TO WORKSTATION-ACCMNTDSP
+               ORGANIZATION IS TRANSACTION
+               FILE STATUS IS WS-DSP-STATUS.
+
+       DATA DIVISION.
+       FILE SECTION.
+       
+       FD  ACCMASTER
+           LABEL RECORDS ARE STANDARD.
+       01  ACCMASTER-REC.
+      * (Simulating Externally Described Format for Compilation)
+           05 AC-ACCT-NUM          PIC 9(12).
+           05 AC-CUST-NAME         PIC X(40).
+           05 AC-KYC-EXP-DATE      PIC 9(08).
+           05 AC-ACCT-STATUS       PIC X(02).
+           05 AC-COMPLIANCE-FLAG   PIC X(01).
+           05 AC-FILLER            PIC X(50).
+
+       FD  TELLER-DSP
+           LABEL RECORDS ARE STANDARD.
+       01  DSP-REC                 PIC X(1920).
+
+       WORKING-STORAGE SECTION.
+
+      *----------------------------------------------------------------*
+      * FILE STATUS & 88-LEVEL CONDITIONALS                            *
+      *----------------------------------------------------------------*
+       01  WS-FILE-STATUS-AREA.
+           05 WS-ACCMASTER-STATUS  PIC X(02) VALUE '00'.
+              88 ACC-OK                    VALUE '00'.
+              88 ACC-EOF                   VALUE '10'.
+              88 ACC-NOT-FOUND             VALUE '23'.
+              88 ACC-LOCKED                VALUES '90', '92'.
+           05 WS-DSP-STATUS        PIC X(02) VALUE '00'.
+
+      *----------------------------------------------------------------*
+      * APPLICATION CONTROL SWITCHES                                   *
+      *----------------------------------------------------------------*
+       01  WS-SWITCHES.
+           05 WS-EXIT-SW           PIC X(01) VALUE 'N'.
+              88 PGM-EXIT                  VALUE 'Y'.
+           05 WS-VALID-ACCT-SW     PIC X(01) VALUE 'N'.
+              88 ACCT-IS-VALID             VALUE 'Y'.
+              88 ACCT-IS-INVALID           VALUE 'N'.
+           05 WS-UPDATE-SW         PIC X(01) VALUE 'N'.
+              88 UPDATE-SUCCESS            VALUE 'Y'.
+              88 UPDATE-FAILED             VALUE 'N'.
+
+      *----------------------------------------------------------------*
+      * USER INTERFACE / SCREEN HANDLING VARIABLES                     *
+      *----------------------------------------------------------------*
+       01  WS-SCREEN-VARS.
+           05 WS-IN-ACCT-NUM       PIC 9(12) VALUE ZEROS.
+           05 WS-MSG-AREA          PIC X(50) VALUE SPACES.
+           05 WS-TELLER-CMD        PIC X(01) VALUE SPACE.
+              88 CMD-SUBMIT                VALUE 'S'.
+              88 CMD-QUIT                  VALUE 'Q'.
+
+      *----------------------------------------------------------------*
+      * SQL HOST VARIABLES & COMMUNICATIONS AREA                       *
+      *----------------------------------------------------------------*
+           EXEC SQL INCLUDE SQLCA END-EXEC.
+
+       01  WS-SQL-VARIABLES.
+           05 WS-SQL-ACCT-NUM      PIC 9(12) VALUE ZEROS.
+           05 WS-KYC-EXPIRED-COUNT PIC S9(04) COMP VALUE ZEROS.
+           05 WS-CURRENT-DATE-NUM  PIC 9(08) VALUE ZEROS.
+
+       PROCEDURE DIVISION.
+
+       0000-MAIN-PROCESSING SECTION.
+      *================================================================*
+      * MAIN CONTROLLER                                                *
+      *================================================================*
+           PERFORM 1000-INITIALIZATION
+           
+           PERFORM 2000-PROCESS-TELLER-REQ
+              UNTIL PGM-EXIT
+
+           PERFORM 9000-TERMINATION.
+
+       1000-INITIALIZATION SECTION.
+      *================================================================*
+      * OPEN FILES AND INITIALIZE STATE                                *
+      *================================================================*
+           OPEN I-O ACCMASTER
+           IF NOT ACC-OK
+               MOVE "FATAL ERROR: ACCMASTER OPEN FAILED" TO WS-MSG-AREA
+               PERFORM 8000-ERROR-HANDLER
+           END-IF
+
+           OPEN I-O TELLER-DSP
+           
+           INITIALIZE WS-SWITCHES
+           MOVE 'N' TO WS-EXIT-SW.
+
+       2000-PROCESS-TELLER-REQ SECTION.
+      *================================================================*
+      * UI INTERACTION AND BUSINESS LOGIC DELEGATION                   *
+      *================================================================*
+           MOVE SPACES TO WS-MSG-AREA
+           
+      * Simulated Screen Prompt (Replace with actual EXFMT)
+           DISPLAY "========================================"
+           DISPLAY "        ACCOUNT MAINTENANCE SYSTEM      "
+           DISPLAY "========================================"
+           DISPLAY "ENTER 12-DIGIT ACCOUNT NUMBER TO UPDATE:"
+           ACCEPT WS-IN-ACCT-NUM
+           
+           DISPLAY "ENTER COMMAND (S = SUBMIT, Q = QUIT):"
+           ACCEPT WS-TELLER-CMD
+
+           EVALUATE TRUE
+               WHEN CMD-QUIT
+                   SET PGM-EXIT TO TRUE
+               WHEN CMD-SUBMIT
+                   PERFORM 3000-READ-AND-LOCK-ACCT
+                   IF ACCT-IS-VALID
+                       PERFORM 4000-CHECK-KYC-SQL
+                       PERFORM 5000-APPLY-UPDATES
+                   END-IF
+               WHEN OTHER
+                   MOVE "INVALID COMMAND. TRY AGAIN." TO WS-MSG-AREA
+                   DISPLAY WS-MSG-AREA
+           END-EVALUATE.
+
+       3000-READ-AND-LOCK-ACCT SECTION.
+      *================================================================*
+      * CHAIN TO FILE WITH STRICT RECORD LOCK                          *
+      *================================================================*
+           SET ACCT-IS-INVALID TO TRUE
+           MOVE WS-IN-ACCT-NUM TO AC-ACCT-NUM
+           
+      * Native RLA CHAIN with strict lock 
+           READ ACCMASTER WITH LOCK
+               KEY IS AC-ACCT-NUM
+           
+           EVALUATE TRUE
+               WHEN ACC-OK
+                   SET ACCT-IS-VALID TO TRUE
+                   MOVE "RECORD LOCKED FOR UPDATE." TO WS-MSG-AREA
+                   DISPLAY WS-MSG-AREA
+                   
+               WHEN ACC-LOCKED
+                   MOVE "RECORD LOCKED BY ANOTHER TELLER - TRY LATER." 
+                     TO WS-MSG-AREA
+                   DISPLAY WS-MSG-AREA
+                   
+               WHEN ACC-NOT-FOUND
+                   MOVE "ACCOUNT NOT FOUND IN MASTER." TO WS-MSG-AREA
+                   DISPLAY WS-MSG-AREA
+                   
+               WHEN OTHER
+                   STRING "DB ERROR: " WS-ACCMASTER-STATUS 
+                       DELIMITED BY SIZE INTO WS-MSG-AREA
+                   DISPLAY WS-MSG-AREA
+           END-EVALUATE.
+
+       4000-CHECK-KYC-SQL SECTION.
+      *================================================================*
+      * EMBEDDED SQL TO VERIFY KYC COMPLIANCE VS CURRENT SYSTEM DATE   *
+      *================================================================*
+           MOVE AC-ACCT-NUM TO WS-SQL-ACCT-NUM
+           MOVE ZEROS TO WS-KYC-EXPIRED-COUNT
+
+      * Check if there are any documents for this account where the 
+      * expiry date is strictly less than today's YYYYMMDD
+           EXEC SQL
+               SELECT COUNT(*)
+                 INTO :WS-KYC-EXPIRED-COUNT
+                 FROM KYCDOCPF
+                WHERE KYC_ACCT_NUM = :WS-SQL-ACCT-NUM
+                  AND KYC_EXP_DATE < 
+                      CAST(VARCHAR_FORMAT(CURRENT TIMESTAMP, 'YYYYMMDD') 
+                           AS DECIMAL(8,0))
+           END-EXEC
+
+           IF SQLCODE < 0
+               STRING "SQL ERROR DURING KYC CHECK: " SQLCODE
+                   DELIMITED BY SIZE INTO WS-MSG-AREA
+               DISPLAY WS-MSG-AREA
+               PERFORM 8000-ERROR-HANDLER
+           END-IF
+
+           IF WS-KYC-EXPIRED-COUNT > 0
+               DISPLAY "--> ALERT: KYC DOCUMENTS EXPIRED!"
+               MOVE 'SND' TO AC-ACCT-STATUS
+               MOVE 'Y'   TO AC-COMPLIANCE-FLAG
+           ELSE
+               DISPLAY "--> KYC COMPLIANCE VERIFIED: ACTIVE"
+               MOVE 'N'   TO AC-COMPLIANCE-FLAG
+           END-IF.
+
+       5000-APPLY-UPDATES SECTION.
+      *================================================================*
+      * REWRITE RECORD AND RELEASE DATABASE LOCK                       *
+      *================================================================*
+           SET UPDATE-FAILED TO TRUE
+           
+           REWRITE ACCMASTER-REC
+           
+           IF ACC-OK
+               SET UPDATE-SUCCESS TO TRUE
+               MOVE "ACCOUNT SUCCESSFULLY UPDATED." TO WS-MSG-AREA
+           ELSE
+               STRING "REWRITE FAILED. FILE STATUS: " 
+                      WS-ACCMASTER-STATUS
+                      DELIMITED BY SIZE INTO WS-MSG-AREA
+           END-IF
+           
+           DISPLAY WS-MSG-AREA
+           
+      * Force unlock/release just in case REWRITE failed or was skipped
+      * (Though REWRITE automatically releases the lock on success)
+           UNLOCK ACCMASTER.
+
+       8000-ERROR-HANDLER SECTION.
+      *================================================================*
+      * FATAL ERROR LOGGING AND GRACEFUL DEGRADATION                   *
+      *================================================================*
+           DISPLAY "****************************************"
+           DISPLAY " SYSTEM EXCEPTION ENCOUNTERED           "
+           DISPLAY WS-MSG-AREA
+           DISPLAY "****************************************"
+           PERFORM 9000-TERMINATION.
+
+       9000-TERMINATION SECTION.
+      *================================================================*
+      * RESOURCE CLEANUP                                               *
+      *================================================================*
+           CLOSE ACCMASTER
+           CLOSE TELLER-DSP
+           GOBACK.

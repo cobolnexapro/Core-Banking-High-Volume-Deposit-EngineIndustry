@@ -1,0 +1,307 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. BNKSIGN.
+       AUTHOR. Nexapro
+       INSTALLATION. CORE BANKING SYSTEM.
+       DATE-COMPILED.
+       
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-I.
+       OBJECT-COMPUTER. IBM-I.
+       
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSP-FILE ASSIGN TO WORKSTATION-BNKSIGND-SI
+                           ORGANIZATION IS TRANSACTION
+                           ACCESS IS SEQUENTIAL.
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSP-FILE.
+       01  DSP-REC                        PIC X(100).
+
+       WORKING-STORAGE SECTION.
+       
+      *================================================================*
+      * SQL COMMUNICATION AREA                                         *
+      *================================================================*
+       EXEC SQL INCLUDE SQLCA END-EXEC.
+
+      *================================================================*
+      * SYSTEM & JOB STATUS DATA STRUCTURE (PSDS EQUIVALENT)           *
+      *================================================================*
+       01  WS-JOB-INFO.
+           05 WS-USER-PROFILE             PIC X(10).
+           05 WS-WORKSTATION              PIC X(10).
+           05 WS-SYS-DATE                 PIC X(8).
+           05 WS-SYS-TIME                 PIC X(6).
+
+      *================================================================*
+      * DISPLAY FILE INTERFACE (BNKSIGND)                              *
+      *================================================================*
+       01  WS-SIGNFMT-I.
+           05  IN-INDICATORS              PIC 99 INDICATORS.
+               88 F03-EXIT                VALUE 03.
+               88 ENTER-PRESSED           VALUE 00.
+           05  SCRID                      PIC X(8).
+           05  SCRPWD                     PIC X(10).
+           05  SCRTKN                     PIC 9(6).
+           
+       01  WS-SIGNFMT-O.
+           05  ERRMSG                     PIC X(40) VALUE SPACES.
+
+      *================================================================*
+      * DATABASE HOST VARIABLES                                        *
+      *================================================================*
+       01  DB-TELLER-RECORD.
+           05 DB-TELLER-ID                PIC X(8).
+           05 DB-STATUS                   PIC X(10).
+           05 DB-LOGGED-IN                PIC X(1).
+           05 DB-FAILED-ATTEMPTS          PIC 9(2).
+
+       01  DB-AUDIT-RECORD.
+           05 AUD-TELLER-ID               PIC X(8).
+           05 AUD-ACTION                  PIC X(20).
+           05 AUD-TERM                    PIC X(10).
+           05 AUD-TIMESTAMP               PIC X(14).
+           05 AUD-SQL-STATE               PIC X(5).
+
+      *================================================================*
+      * PROGRAM CONTROL & STATE FLAGS                                  *
+      *================================================================*
+       01  WS-CONTROL-FLAGS.
+           05 WS-PROG-STATUS              PIC X(1)  VALUE 'R'.
+              88 PROG-RUNNING             VALUE 'R'.
+              88 PROG-EXITED              VALUE 'E'.
+              88 PROG-SUCCESS             VALUE 'S'.
+           05 WS-AUTH-STAGE               PIC X(2)  VALUE '01'.
+              88 STAGE-CREDENTIALS        VALUE '01'.
+              88 STAGE-2FA                VALUE '02'.
+           05 WS-DB-ERROR-FLAG            PIC X(1)  VALUE 'N'.
+              88 DB-ERROR-OCCURRED        VALUE 'Y'.
+
+       01  WS-COUNTERS.
+           05 WS-2FA-ATTEMPTS             PIC 9(1)  VALUE 0.
+           05 WS-MAX-2FA-ATTEMPTS         PIC 9(1)  VALUE 3.
+
+       01  WS-SECURITY-WORK.
+           05 WS-HASHED-PWD               PIC X(64).
+
+       LINKAGE SECTION.
+       01  LS-EXPECTED-TOKEN              PIC 9(6).
+
+      *================================================================*
+       PROCEDURE DIVISION USING LS-EXPECTED-TOKEN.
+      *================================================================*
+       
+       0000-MAINLINE.
+           PERFORM 1000-INITIALIZATION.
+           
+           PERFORM 2000-MAIN-UI-LOOP 
+              UNTIL PROG-EXITED OR PROG-SUCCESS.
+              
+           PERFORM 9000-TERMINATION.
+           GOBACK.
+
+      *================================================================*
+       1000-INITIALIZATION.
+      *================================================================*
+           OPEN I-O DSP-FILE.
+           
+           ACCEPT WS-USER-PROFILE FROM USER-NAME.
+           ACCEPT WS-WORKSTATION  FROM WORKSTATION.
+           
+      * Configure Strict SQL Commitment Control
+           EXEC SQL 
+               SET OPTION COMMIT = *CHG, 
+                          CLOSQLCSR = *ENDMOD,
+                          DATFMT = *ISO 
+           END-EXEC.
+           
+           INITIALIZE WS-SIGNFMT-O.
+           SET PROG-RUNNING TO TRUE.
+           SET STAGE-CREDENTIALS TO TRUE.
+
+      *================================================================*
+       2000-MAIN-UI-LOOP.
+      *================================================================*
+           WRITE DSP-REC FROM WS-SIGNFMT-O FORMAT IS "SIGNFMT".
+           READ DSP-FILE INTO WS-SIGNFMT-I FORMAT IS "SIGNFMT".
+           
+           MOVE SPACES TO ERRMSG OF WS-SIGNFMT-O.
+
+           IF IN-INDICATORS(03) = 1
+               SET PROG-EXITED TO TRUE
+               GO TO 2000-EXIT
+           END-IF.
+
+           IF STAGE-CREDENTIALS
+               PERFORM 3000-VALIDATE-CREDENTIALS
+           ELSE
+               PERFORM 4000-VALIDATE-2FA
+           END-IF.
+
+       2000-EXIT.
+           EXIT.
+
+      *================================================================*
+       3000-VALIDATE-CREDENTIALS.
+      *================================================================*
+      * 1. Pre-Database Validation
+           IF SCRID = SPACES OR SCRPWD = SPACES
+               MOVE "Teller ID and Password are required." TO ERRMSG
+               GO TO 3000-EXIT
+           END-IF.
+
+      * 2. Hash the Password (Simulated Call to Security Module)
+      * CALL 'BNKCRYPTO' USING SCRPWD WS-HASHED-PWD.
+      * For this exercise, we map it directly to simulate hash check.
+           MOVE SCRPWD TO WS-HASHED-PWD.
+
+      * 3. Database Query with Row Locking (FOR UPDATE)
+           EXEC SQL
+               SELECT TELLER_STATUS, LOGGED_IN_FLAG, FAILED_ATTEMPTS
+               INTO :DB-STATUS, :DB-LOGGED-IN, :DB-FAILED-ATTEMPTS
+               FROM TELLERMST
+               WHERE TELLER_ID = :SCRID 
+                 AND PASSWORD_HASH = :WS-HASHED-PWD
+               FOR UPDATE OF LOGGED_IN_FLAG, TELLER_STATUS
+           END-EXEC.
+
+      * 4. Evaluate SQL Diagnostics
+           EVALUATE SQLSTATE
+               WHEN '00000'
+                   CONTINUE
+               WHEN '02000'
+                   MOVE "Invalid Teller ID or Password." TO ERRMSG
+                   PERFORM 8100-LOG-FAILED-LOGIN
+                   GO TO 3000-EXIT
+               WHEN OTHER
+                   MOVE "System Error: Database inaccessible." TO ERRMSG
+                   PERFORM 8900-HANDLE-DB-ERROR
+                   GO TO 3000-EXIT
+           END-EVALUATE.
+
+      * 5. Evaluate Teller State
+           IF DB-STATUS NOT = 'ACTIVE'
+               MOVE "Account inactive or locked. Contact Admin." TO ERRMSG
+               PERFORM 8100-LOG-FAILED-LOGIN
+               GO TO 3000-EXIT
+           END-IF.
+
+           IF DB-LOGGED-IN = 'Y'
+               MOVE "Active session exists. Force logout first." TO ERRMSG
+               PERFORM 8100-LOG-FAILED-LOGIN
+               GO TO 3000-EXIT
+           END-IF.
+
+      * Credentials are valid. Move to 2FA phase.
+           SET STAGE-2FA TO TRUE.
+           MOVE "Credentials accepted. Enter 2FA Token." TO ERRMSG.
+
+       3000-EXIT.
+           EXIT.
+
+      *================================================================*
+       4000-VALIDATE-2FA.
+      *================================================================*
+           IF SCRTKN = LS-EXPECTED-TOKEN
+               PERFORM 5000-FINALIZE-LOGIN
+           ELSE
+               ADD 1 TO WS-2FA-ATTEMPTS
+               IF WS-2FA-ATTEMPTS >= WS-MAX-2FA-ATTEMPTS
+                   PERFORM 6000-LOCK-ACCOUNT
+               ELSE
+                   STRING "Invalid Token. Attempts remaining: " 
+                          (WS-MAX-2FA-ATTEMPTS - WS-2FA-ATTEMPTS)
+                          DELIMITED BY SIZE INTO ERRMSG
+               END-IF
+           END-IF.
+
+       4000-EXIT.
+           EXIT.
+
+      *================================================================*
+       5000-FINALIZE-LOGIN.
+      *================================================================*
+           EXEC SQL
+               UPDATE TELLERMST
+               SET LOGGED_IN_FLAG = 'Y',
+                   FAILED_ATTEMPTS = 0,
+                   LAST_LOGIN_TS = CURRENT TIMESTAMP
+               WHERE TELLER_ID = :SCRID
+           END-EXEC.
+           
+           IF SQLSTATE = '00000'
+               MOVE "LOGIN_SUCCESS" TO AUD-ACTION
+               PERFORM 8000-WRITE-AUDIT-LOG
+               EXEC SQL COMMIT END-EXEC
+               SET PROG-SUCCESS TO TRUE
+               MOVE "Sign-on successful. Initializing..." TO ERRMSG
+           ELSE
+               PERFORM 8900-HANDLE-DB-ERROR
+           END-IF.
+
+      *================================================================*
+       6000-LOCK-ACCOUNT.
+      *================================================================*
+           EXEC SQL
+               UPDATE TELLERMST
+               SET TELLER_STATUS = 'LOCKED',
+                   FAILED_ATTEMPTS = :WS-2FA-ATTEMPTS
+               WHERE TELLER_ID = :SCRID
+           END-EXEC.
+
+           IF SQLSTATE = '00000'
+               MOVE "ACCT_LOCKED_2FA" TO AUD-ACTION
+               PERFORM 8000-WRITE-AUDIT-LOG
+               EXEC SQL COMMIT END-EXEC
+               MOVE "Account locked: Maximum 2FA attempts reached." 
+                    TO ERRMSG
+               SET PROG-EXITED TO TRUE
+           ELSE
+               PERFORM 8900-HANDLE-DB-ERROR
+           END-IF.
+
+      *================================================================*
+       8000-WRITE-AUDIT-LOG.
+      *================================================================*
+           ACCEPT WS-SYS-DATE FROM DATE YYYYMMDD.
+           ACCEPT WS-SYS-TIME FROM TIME.
+           STRING WS-SYS-DATE WS-SYS-TIME DELIMITED BY SIZE 
+                  INTO AUD-TIMESTAMP.
+                  
+           MOVE SCRID TO AUD-TELLER-ID.
+           MOVE WS-WORKSTATION TO AUD-TERM.
+           MOVE SQLSTATE TO AUD-SQL-STATE.
+
+           EXEC SQL
+               INSERT INTO SECAUDPF 
+               (TELLER_ID, ACTION_CODE, TERM_ID, ACTION_TS, SQL_ST)
+               VALUES 
+               (:AUD-TELLER-ID, :AUD-ACTION, :AUD-TERM, 
+                :AUD-TIMESTAMP, :AUD-SQL-STATE)
+           END-EXEC.
+
+       8100-LOG-FAILED-LOGIN.
+           MOVE "LOGIN_DENIED" TO AUD-ACTION.
+           PERFORM 8000-WRITE-AUDIT-LOG.
+           EXEC SQL COMMIT END-EXEC.
+
+      *================================================================*
+       8900-HANDLE-DB-ERROR.
+      *================================================================*
+      * If an unexpected SQL error occurs, rollback any partial updates
+           EXEC SQL ROLLBACK END-EXEC.
+           SET DB-ERROR-OCCURRED TO TRUE.
+           MOVE "SYS_DB_FAULT" TO AUD-ACTION.
+           PERFORM 8000-WRITE-AUDIT-LOG.
+           
+           STRING "Critical System Error. Code: " SQLSTATE 
+                  DELIMITED BY SIZE INTO ERRMSG.
+           SET PROG-EXITED TO TRUE.
+
+      *================================================================*
+       9000-TERMINATION.
+      *================================================================*
+           CLOSE DSP-FILE.
